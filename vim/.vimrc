@@ -1,9 +1,8 @@
-"------------------------------------------------------------
-" Features 
+" Features
 "
 " These options and commands enable some very useful features in Vim, that
 " no user should have to live without.
- 
+
 " Set 'nocompatible' to ward off unexpected things that your distro might
 " have made, as well as sanely reset options when re-sourcing .vimrc
 set nocompatible
@@ -22,6 +21,9 @@ syntax on
 " Colorscheme
 colorscheme holokai
 
+" Paste toggle
+set pastetoggle=<F2>
+
 " Start spell checking
 "set spell spelllang=bg,en_us
 
@@ -30,7 +32,7 @@ colorscheme holokai
 " Must have options {{{1
 "
 " These are highly recommended options.
- 
+
 " Vim with default settings does not allow easy switching between multiple files
 " in the same editor window. Users can use multiple split windows or multiple
 " tab pages to edit multiple files, but it is still best to enable an option to
@@ -45,15 +47,15 @@ colorscheme holokai
 " try to quit without saving, and swap files will keep you safe if your computer
 " crashes.
 set hidden
- 
+
 " Better command-line completion
 set wildmenu
- 
+
 " Show partial commands in the last line of the screen
 set showcmd
 
 " Highlight current line
-set cursorline        
+set cursorline
 hi CursorLine   cterm=bold ctermbg=black ctermfg=NONE
 
 " Highlight searches (use <C-L> to temporarily turn off highlighting; see the
@@ -67,45 +69,45 @@ set hlsearch
 " change Vim's behaviour in ways which deviate from the true Vi way, but
 " which are considered to add usability. Which, if any, of these options to
 " use is very much a personal preference, but they are harmless.
- 
+
 " Use case insensitive search, except when using capital letters
 set ignorecase
 set smartcase
 
 " Search as the search expression is being typed
 set incsearch
- 
+
 " Allow backspacing over autoindent, line breaks and start of insert action
 set backspace=indent,eol,start
- 
+
 " When opening a new line and no filetype-specific indenting is enabled, keep
 " the same indent as the line you're currently on. Useful for READMEs, etc.
 set autoindent
- 
+
 " Stop certain movements from always going to the first character of a line.
 " While this behaviour deviates from that of Vi, it does what most users
 " coming from other editors would expect.
 set nostartofline
- 
+
 " Display the cursor position on the last line of the screen or in the status
 " line of a window
 set ruler
- 
+
 " Always display the status line, even if only one window is displayed
 set laststatus=2
- 
+
 " Instead of failing a command because of unsaved changes, instead raise a
 " dialogue asking if you wish to save changed files.
 set confirm
- 
+
 " Use visual bell instead of beeping when doing something wrong
 " set visualbell
- 
+
 " And reset the terminal code for the visual bell. If visualbell is set, and
 " this line is also included, vim will neither flash nor beep. If visualbell
 " is unset, this does nothing.
 " set t_vb=
- 
+
 " Enable use of the mouse for all modes
 " set mouse=a
 
@@ -116,32 +118,32 @@ set cmdheight=2
 set history=2000
 
 " Redraw only when we need to
-set lazyredraw         
+set lazyredraw
 
 " Display line numbers on the left
 set number
- 
+
 " Quickly time out on keycodes, but never time out on mappings
 set notimeout ttimeout ttimeoutlen=200
 
 " Enable folding
-set foldenable          
- 
+set foldenable
+
 "------------------------------------------------------------
-" Indentation options 
+" Indentation options
 "
 " Indentation settings according to personal preference.
- 
+
 " Indentation settings for using 4 spaces instead of tabs.
 " Do not change 'tabstop' from its default value of 8 with this setup.
 
 set shiftwidth=4
 set softtabstop=4
-set tabstop=4
+"set tabstop=4
 set expandtab
- 
+
 "------------------------------------------------------------
-" Mappings 
+" Mappings
 "
 
 " Mapping leader to 'space'
@@ -152,18 +154,19 @@ map <C-right> <C-w>l
 map <C-left> <C-w>h
 map <C-up> <C-w>k
 map <C-down> <C-w>j
+map <leader><tab> <C-w><C-w><CR>
 
 " Buffers orientation
 map <leader><right> :bnext<CR>
 map <leader><left> :bprevious<CR>
-map <leader><up> :bdelete<CR>
+map <leader><up> :b#<CR>
 map <leader><down> :ls<CR>:b
-map <leader>c :bdelete<CR> 
-map <leader>b :b 
+map <leader>d :bdelete<CR>
+map <leader>b :b
 
-" Spell 
+" Spell
 map <leader>s :set spell spelllang=bg,en_us
-map <leader>S :set nospell
+map <leader>S :set nospell<CR>
 
 " Map Y to act like D and C, i.e. to yank until EOL, rather than act as yy,
 " which is the default
@@ -171,7 +174,7 @@ map <leader>S :set nospell
 map Y y$
 map <leader>w :w<CR>
 map <leader>q :q<CR>
- 
+
 " Map <C-L> (redraw screen) to also turn off search highlighting until the
 " next search
 nnoremap <C-L> :nohl<CR><C-L>
@@ -195,7 +198,7 @@ nmap <F8> :TagbarToggle<CR>
 
 "------------------------------------------------------------
 " NerdTree settings
-nmap <F9> :NERDTree<CR>
+nmap <F9> :NERDTreeToggle<CR>
 
 "------------------------------------------------------------
 " Map grep
@@ -203,7 +206,11 @@ nmap <F9> :NERDTree<CR>
 noremap <C-g> :Grep  *<left><left>
 
 "------------------------------------------------------------
-" Python 
+" Syntastic"
+let g:syntastic_mode_map = { 'passive_filetypes': ['python'] }
+
+"------------------------------------------------------------
+" Python
 let g:pymode_python = 'python3'
 
 " Stops rope (BUG: Writing hangs when rope is on)
@@ -217,6 +224,10 @@ let g:pymode_folding = 0
 let g:cpp_class_decl_highlight = 1
 let g:cpp_experimental_template_highlight = 1
 let g:cpp_concepts_highlight = 1
+
+"-----------------------------------------------------------
+" DVC
+autocmd! BufNewFile,BufRead Dvcfile,*.dvc setfiletype yaml
 
 "-----------------------------------------------------------
 " Vim translate
@@ -289,6 +300,7 @@ call plug#begin('~/.vim/plugged')
 
 "Plug 'jceb/vim-orgmode'
 Plug 'vim-syntastic/syntastic'
+Plug 'tpope/vim-surround'
 " Plug 'vim-perl/vim-perl'
 Plug 'scrooloose/nerdtree'
 Plug 'honza/vim-snippets'
@@ -300,7 +312,7 @@ Plug 'vim-airline/vim-airline-themes'
 Plug 'klen/python-mode'
 Plug 'vim-scripts/Conque-Shell'
 " Plug 'fatih/vim-go'
-Plug 'octol/vim-cpp-enhanced-highlight'
+" Plug 'octol/vim-cpp-enhanced-highlight'
 Plug 'flazz/vim-colorschemes'
 Plug 'vim-scripts/grep.vim'
 " Plug 'aquach/vim-http-client'

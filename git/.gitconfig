@@ -10,7 +10,8 @@
 	co = checkout
 	df = diff
 	dfc = diff --cached
-	st = status -v
+	st = status
+        stv = status -v
 	f = fetch
 	mg = merge
 	rs = reset
@@ -32,7 +33,14 @@
 	status = auto
 	branch = auto
 	interactive = auto
-	pager = true
+        pager = true
+	ui = true
+[color "status"]
+        added = green bold
+        changed = red bold
+        untracked = magenta bold
+[color "branch"]
+        remote = yellow
 [diff]
 	tool = vimdiff
 [merge]
