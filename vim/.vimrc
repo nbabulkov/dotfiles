@@ -7,7 +7,7 @@
 " have made, as well as sanely reset options when re-sourcing .vimrc
 set nocompatible
 
-" Set numer of colors for terminal
+" Set number of colors for terminal
 set t_Co=256
 
 " Attempt to determine the type of a file based on its name and possibly its
@@ -25,7 +25,8 @@ colorscheme holokai
 set pastetoggle=<F2>
 
 " Start spell checking
-"set spell spelllang=bg,en_us
+set spell spelllang=bg,en_us
+set complete+=kspell
 
 
 "------------------------------------------------------------
@@ -112,7 +113,7 @@ set confirm
 " set mouse=a
 
 " Set the command window height to 2 lines, to avoid many cases of having to
-set cmdheight=2
+set cmdheight=1
 
 " More cmdline history
 set history=2000
@@ -142,6 +143,11 @@ set softtabstop=4
 "set tabstop=4
 set expandtab
 
+autocmd FileType html setlocal ts=2 sts=2 sw=2
+autocmd FileType ruby setlocal ts=2 sts=2 sw=2
+autocmd FileType javascript setlocal ts=2 sts=2 sw=2
+autocmd FileType python setlocal ts=4 sts=4 sw=4
+
 "------------------------------------------------------------
 " Mappings
 "
@@ -157,16 +163,15 @@ map <C-down> <C-w>j
 map <leader><tab> <C-w><C-w><CR>
 
 " Buffers orientation
-map <leader><right> :bnext<CR>
-map <leader><left> :bprevious<CR>
-map <leader><up> :b#<CR>
-map <leader><down> :ls<CR>:b
+map <leader>l :bnext<CR>
+map <leader>h :bprevious<CR>
+map <leader>k :b#<CR>
+map <leader>j :ls<CR>:b
 map <leader>d :bdelete<CR>
 map <leader>b :b
 
 " Spell
-map <leader>s :set spell spelllang=bg,en_us
-map <leader>S :set nospell<CR>
+nn <F7> :setlocal spell! spell?<CR>
 
 " Map Y to act like D and C, i.e. to yank until EOL, rather than act as yy,
 " which is the default
@@ -191,7 +196,6 @@ let g:airline#extensions#tabline#enabled = 1
 let g:airline#extensions#tabline#left_sep = ' '
 let g:airline#extensions#tabline#left_alt_sep = '|'
 
-
 "------------------------------------------------------------
 " Tagbar Settings
 nmap <F8> :TagbarToggle<CR>
@@ -207,17 +211,35 @@ noremap <C-g> :Grep  *<left><left>
 
 "------------------------------------------------------------
 " Syntastic"
-let g:syntastic_mode_map = { 'passive_filetypes': ['python'] }
+"let g:syntastic_mode_map = { 'passive_filetypes': ['python'] }
 
 "------------------------------------------------------------
-" Python
-let g:pymode_python = 'python3'
+" Tex
+let g:tex_flavor = 'latex'
 
-" Stops rope (BUG: Writing hangs when rope is on)
-let g:pymode_rope = 0
-let g:pymode_rope_completion = 0
-let g:pymode_folding = 0
+" ALE
+"------------------------------------------------------------
+let b:ale_fixers = {
+\   '*': ['remove_trailing_lines', 'trim_whitespace'],
+\   'python': ['black', 'isort'],
+\   'javascript': ['prettier', 'eslint']
+\}
+let b:ale_linters = {
+\   'python': ['pylint', 'mypy'],
+\   'javascript': ['eslint']
+\}
+let g:ale_javascript_xo_options = "--plug=react --prettier"
+let g:ale_sign_error = '❌'
+let g:ale_sign_warning = '⚠️'
+let g:ale_lint_on_text_changed = 'never'
+let g:ale_lint_on_insert_leave = 0
+let g:ale_fix_on_save = 1
+let g:ale_lint_on_save = 1
 
+noremap <F6> :ALEFix<CR>
+noremap <F5> :ALELint<CR>
+noremap <F5> :ALEGoToDefinition<CR>
+noremap <F4> :ALEFindReferences<CR>
 
 "-----------------------------------------------------------
 " C++
@@ -299,7 +321,8 @@ call SetupCommandAlias("W", "w")
 call plug#begin('~/.vim/plugged')
 
 "Plug 'jceb/vim-orgmode'
-Plug 'vim-syntastic/syntastic'
+Plug 'dense-analysis/ale'
+" Plug 'vim-syntastic/syntastic'
 Plug 'tpope/vim-surround'
 " Plug 'vim-perl/vim-perl'
 Plug 'scrooloose/nerdtree'
@@ -309,12 +332,13 @@ Plug 'tpope/vim-fugitive'
 Plug 'airblade/vim-gitgutter'
 Plug 'vim-airline/vim-airline'
 Plug 'vim-airline/vim-airline-themes'
-Plug 'klen/python-mode'
-Plug 'vim-scripts/Conque-Shell'
+" Plug 'klen/python-mode'
+" Plug 'vim-scripts/Conque-Shell'
 " Plug 'fatih/vim-go'
 " Plug 'octol/vim-cpp-enhanced-highlight'
 Plug 'flazz/vim-colorschemes'
 Plug 'vim-scripts/grep.vim'
+Plug 'jremmen/vim-ripgrep'
 " Plug 'aquach/vim-http-client'
 Plug 'fidian/hexmode'
 " Plug 'fholgado/minibufexpl.vim'
