@@ -17,6 +17,7 @@ function dirsize () {
 	fi
 	du -h --max-depth=1 "$dir" | sort -h -r
 }
+alias g='git'
 
 # Edit aliases
 alias editalias='vim ~/.bash_aliases'
@@ -59,10 +60,21 @@ alias wttr='curl wttr.in/sofia'
 # List services
 alias services='systemctl list-unit-files | awk "/enabled/ {print \$1}"'
 
+alias bashreload='source ~/.bashrc'
+
 # Open cpp files
 alias cpp='vim *.h *.hpp *.cpp 2> /dev/null || vim *.h *.cpp 2> /dev/null || vim *.hpp *.cpp 2> /dev/null || vim *.cpp'
 
 alias vimrc='vim ~/.vimrc'
+
+# Activate python venv
+venvactivate() {
+    activation_script="./venv/bin/activate"
+    if [ "$1" != "" ]; then
+        activation_script="$1/bin/activate"
+    fi
+    source $activation_script
+}
 
 # Open postgresql as user postgres
 alias pgsql='psql -Upostgres'
