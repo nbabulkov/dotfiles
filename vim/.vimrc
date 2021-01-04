@@ -1,3 +1,4 @@
+"------------------------------------------------------------
 " Features
 "
 " These options and commands enable some very useful features in Vim, that
@@ -24,10 +25,13 @@ colorscheme holokai
 " Paste toggle
 set pastetoggle=<F2>
 
-" Start spell checking
-set spell spelllang=bg,en_us
-set complete+=kspell
+" Encoding
+set encoding=utf-8
 
+" Start spell checking
+set spell spelllang=en_us ", bg
+set complete+=kspell
+set nospell
 
 "------------------------------------------------------------
 " Must have options {{{1
@@ -56,8 +60,11 @@ set wildmenu
 set showcmd
 
 " Highlight current line
+
 set cursorline
-hi CursorLine   cterm=bold ctermbg=black ctermfg=NONE
+hi CursorLine cterm=bold ctermbg=black ctermfg=NONE
+hi CursorColumn cterm=bold ctermbg=black ctermfg=NONE
+nnoremap <Leader>c :set cursorline! cursorcolumn!<CR>
 
 " Highlight searches (use <C-L> to temporarily turn off highlighting; see the
 " mapping of <C-L> below)
@@ -113,7 +120,7 @@ set confirm
 " set mouse=a
 
 " Set the command window height to 2 lines, to avoid many cases of having to
-set cmdheight=1
+set cmdheight=2
 
 " More cmdline history
 set history=2000
@@ -130,6 +137,11 @@ set notimeout ttimeout ttimeoutlen=200
 " Enable folding
 set foldenable
 
+" Change swap files diretory
+set backupdir=~/.vim/tmp//
+set directory=~/.vim/tmp//
+set undodir=~/.vim/tmp//
+
 "------------------------------------------------------------
 " Indentation options
 "
@@ -140,13 +152,8 @@ set foldenable
 
 set shiftwidth=4
 set softtabstop=4
-"set tabstop=4
+set tabstop=4
 set expandtab
-
-autocmd FileType html setlocal ts=2 sts=2 sw=2
-autocmd FileType ruby setlocal ts=2 sts=2 sw=2
-autocmd FileType javascript setlocal ts=2 sts=2 sw=2
-autocmd FileType python setlocal ts=4 sts=4 sw=4
 
 "------------------------------------------------------------
 " Mappings
@@ -160,18 +167,14 @@ map <C-right> <C-w>l
 map <C-left> <C-w>h
 map <C-up> <C-w>k
 map <C-down> <C-w>j
-map <leader><tab> <C-w><C-w><CR>
 
 " Buffers orientation
 map <leader>l :bnext<CR>
-map <leader>h :bprevious<CR>
+map <leader>h :bprev<CR>
 map <leader>k :b#<CR>
 map <leader>j :ls<CR>:b
 map <leader>d :bdelete<CR>
 map <leader>b :b
-
-" Spell
-nn <F7> :setlocal spell! spell?<CR>
 
 " Map Y to act like D and C, i.e. to yank until EOL, rather than act as yy,
 " which is the default
@@ -180,9 +183,19 @@ map Y y$
 map <leader>w :w<CR>
 map <leader>q :q<CR>
 
+" Refresh file
+nnoremap <F5> :e!<CR>
+
+" Reload vimrc
+nnoremap <leader>r :source $MYVIMRC<CR>
+
+" Toggle paste mode
+nnoremap <leader>p :set paste<CR>
+nnoremap <leader>P :set nopaste<CR>
+
 " Map <C-L> (redraw screen) to also turn off search highlighting until the
 " next search
-nnoremap <C-L> :nohl<CR><C-L>
+nnoremap <C-L> :nohl<CR>:redraw<CR>
 
 " Map toggle show line number
 nnoremap <C-B> :set nonumber<CR>
@@ -205,21 +218,32 @@ nmap <F8> :TagbarToggle<CR>
 nmap <F9> :NERDTreeToggle<CR>
 
 "------------------------------------------------------------
+" Toggle spelling
+nn <F7> :setlocal spell! spell?<CR>
+
+"------------------------------------------------------------
 " Map grep
 
 noremap <C-g> :Grep  *<left><left>
+"------------------------------------------------------------
+" Python
+
+let g:python3_host_prog = '/usr/bin/python3'
+set pythonthreedll=/usr/lib/python3.6/config-3.6m-x86_64-linux-gnu/libpython3.6m.so
+pythonx import pynvim
 
 "------------------------------------------------------------
-" Syntastic"
-"let g:syntastic_mode_map = { 'passive_filetypes': ['python'] }
+" Deoplete
+let g:deoplete#enable_at_startup = 1
 
 "------------------------------------------------------------
-" Tex
-let g:tex_flavor = 'latex'
-
 " ALE
-"------------------------------------------------------------
-let b:ale_fixers = {
+let g:ale_echo_msg_error_str = 'E'
+let g:ale_echo_msg_warning_str = 'W'
+let g:ale_echo_msg_format = '[%linter%] %s [%severity%]'
+let g:airline#extensions#ale#enabled = 1
+
+let g:ale_fixers = {
 \   '*': ['remove_trailing_lines', 'trim_whitespace'],
 \   'python': ['black', 'isort'],
 \   'javascript': ['prettier', 'eslint']
@@ -240,6 +264,27 @@ noremap <F6> :ALEFix<CR>
 noremap <F5> :ALELint<CR>
 noremap <F5> :ALEGoToDefinition<CR>
 noremap <F4> :ALEFindReferences<CR>
+
+"------------------------------------------------------------
+" Autoformat
+"let g:formatters_python = ['black']
+
+"------------------------------------------------------------
+" Pymode
+"let g:pymode_python = 'python3'
+"
+"" Stops rope (BUG: Writing hangs when rope is on)
+"let g:pymode_rope = 0
+"let g:pymode_rope_completion = 0
+"let g:pymode_folding = 0
+"
+"-----------------------------------------------------------
+" Synstastic
+"let g:syntastic_always_populate_loc_list = 1
+"let g:syntastic_auto_loc_list = 1
+"let g:syntastic_check_on_open = 0
+"let g:syntastic_check_on_wq = 0
+"let g:syntastic_mode_map = { 'mode': 'passive' }
 
 "-----------------------------------------------------------
 " C++
@@ -264,6 +309,10 @@ autocmd! BufNewFile,BufRead Dvcfile,*.dvc setfiletype yaml
 "  'v_key': 'T' " ? define key in visual-mode (optional)
 "}
 "
+"-----------------------------------------------------------
+" Tex
+let g:tex_flavor = 'latex'
+
 
 "-----------------------------------------------------------
 " Highlight trailing whitespaces
@@ -320,20 +369,32 @@ call SetupCommandAlias("W", "w")
 
 call plug#begin('~/.vim/plugged')
 
-"Plug 'jceb/vim-orgmode'
+Plug 'changyuheng/color-scheme-holokai-for-vim'
 Plug 'dense-analysis/ale'
+" Plug 'jceb/vim-orgmode'
 " Plug 'vim-syntastic/syntastic'
 Plug 'tpope/vim-surround'
+
+Plug 'roxma/nvim-yarp'
+Plug 'roxma/vim-hug-neovim-rpc'
+Plug 'Shougo/deoplete.nvim'
+let g:deoplete#enable_at_startup = 1
+
+Plug 'chrisbra/csv.vim'
+Plug 'junegunn/fzf.vim'
+Plug 'jremmen/vim-ripgrep'
+Plug 'git@github.com:AndrewRadev/linediff.vim.git'
 " Plug 'vim-perl/vim-perl'
 Plug 'scrooloose/nerdtree'
+"Plug 'Chiel92/vim-autoformat'
 Plug 'honza/vim-snippets'
 Plug 'majutsushi/tagbar'
 Plug 'tpope/vim-fugitive'
 Plug 'airblade/vim-gitgutter'
 Plug 'vim-airline/vim-airline'
 Plug 'vim-airline/vim-airline-themes'
-" Plug 'klen/python-mode'
-" Plug 'vim-scripts/Conque-Shell'
+"Plug 'klen/python-mode'
+Plug 'benmills/vimux'
 " Plug 'fatih/vim-go'
 " Plug 'octol/vim-cpp-enhanced-highlight'
 Plug 'flazz/vim-colorschemes'
@@ -343,11 +404,11 @@ Plug 'jremmen/vim-ripgrep'
 Plug 'fidian/hexmode'
 " Plug 'fholgado/minibufexpl.vim'
 Plug 'ctrlpvim/ctrlp.vim'
-Plug '~/Code/cloned-projects/fzf'
+
 "Plug 'bundle/vim-translator'
 Plug 'tmux-plugins/vim-tmux'
 Plug 'lervag/vimtex'
 "Plug 'vim-latex/vim-latex'
-Plug 'szymonmaszke/vimpyter'
+"Plug 'szymonmaszke/vimpyter'
 
 call plug#end()
