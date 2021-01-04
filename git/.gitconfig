@@ -1,28 +1,32 @@
 [core]
 	editor = vim
-[user]
-	email = nbabulkov@gmail.com
-	name = nbabulkov
+	pager = diff-so-fancy | less --tabs=4 -RFX
 [alias]
 	ci = commit -v
 	cia = commit -v --amend
+	cl = clone
 	br = branch
 	co = checkout
 	df = diff
 	dfc = diff --cached
 	st = status
-        stv = status -v
-	f = fetch
+    stv = status -v
+    sh = stash
+    sha = stash apply
+	f = fetch -v --all
 	mg = merge
 	rs = reset
 	rsh = reset --hard
+    rst = restore --staged
 	rb = rebase
+    cp = cherry-pick -x
 	rbi = rebase -i
 	rbc = rebase --continue
 	mg = merge
-	ps = push
+	ps = push -v origin HEAD
 	ad = add -p
 	pl = pull -v --stat
+	plr = pull -v --stat --rebase
 	l = log --oneline
 	lp = log -p
 	lg = log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim white)- %an%C(reset)%C(bold yellow)%d%C(reset)' --all
@@ -33,15 +37,27 @@
 	status = auto
 	branch = auto
 	interactive = auto
-        pager = true
+    pager = true
 	ui = true
 [color "status"]
-        added = green bold
-        changed = red bold
-        untracked = magenta bold
+    added = green bold
+    changed = red bold
+    untracked = magenta bold
 [color "branch"]
-        remote = yellow
+    remote = yellow
+[color "diff"]
+	new = green bold
+	meta = 11
+	frag = magenta bold
+	commit = yellow bold
+	old = red bold
+	whitespace = red reverse
 [diff]
 	tool = vimdiff
 [merge]
 	tool = vimdiff
+[color "diff-highlight"]
+	oldNormal = red bold
+	oldHighlight = red bold 52
+	newNormal = green bold
+	newHighlight = green bold 22
