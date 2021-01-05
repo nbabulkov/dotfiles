@@ -2,7 +2,10 @@
 # export PATH=$HOME/bin:/usr/local/bin:$PATH
 
 # Path to your oh-my-zsh installation.
-export ZSH=/home/nbabulkov/.oh-my-zsh
+export ZSH=/home/nikolaybabulkov/.oh-my-zsh
+
+# Path to fzf
+export FZF_BASE="$HOME/code/cloned/fzf"
 
 # Set name of the theme to load. Optionally, if you set this to "random"
 # it'll load a random theme each time that oh-my-zsh is loaded.
@@ -65,7 +68,6 @@ plugins=(
   git
   git-prompt
   tig
-  zsh-autosuggestions
   zsh_reload
   colorize
 #  golang
@@ -73,16 +75,20 @@ plugins=(
 #  tmux
   pass
   python
+  postgres
   pip
   pyenv
   sudo
   fzf
   systemd
   ubuntu
-  vagrant
+  vscode
+#  vagrant
   docker
   ssh-agent
   colored-man-pages
+  zsh-autosuggestions
+  zsh-syntax-highlighting
 )
 
 # Add oh-my-zsh
@@ -96,11 +102,7 @@ source $ZSH/oh-my-zsh.sh
 # export LANG=en_US.UTF-8
 
 # Preferred editor for local and remote sessions
-# if [[ -n $SSH_CONNECTION ]]; then
-#   export EDITOR='vim'
-# else
-#   export EDITOR='mvim'
-# fi
+export EDITOR='vim'
 
 # Python virtualenv wrapper
 #VIRTUALENVWRAPPER_PYTHON=/usr/bin/python3
@@ -108,10 +110,10 @@ source $ZSH/oh-my-zsh.sh
 #source /usr/local/bin/virtualenvwrapper.sh
 
 # Export Rust variables
-source $HOME/.cargo/env
+#source $HOME/.cargo/env
 
 # Add Go bin to PATH
-export PATH=~/go/bin:$PATH
+#export PATH=~/go/bin:$PATH
 
 # Export /home/bin
 export PATH=~/.local/bin:$PATH
@@ -140,6 +142,5 @@ if [ -f ~/.bash_aliases ]; then
     . ~/.bash_aliases
 fi
 
-[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 [ -f ~/.dvc.zsh ] && source ~/.dvc.zsh
-
+[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
