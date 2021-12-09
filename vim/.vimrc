@@ -228,13 +228,12 @@ noremap <C-g> :Grep  *<left><left>
 "------------------------------------------------------------
 " Python
 
-let g:python3_host_prog = '/usr/bin/python3'
-set pythonthreedll=/usr/lib/python3.6/config-3.6m-x86_64-linux-gnu/libpython3.6m.so
-pythonx import pynvim
+let g:python3_host_prog = '/opt/python-3.6.10/bin/python3'
+"python3 import pynvim
 
 "------------------------------------------------------------
 " Deoplete
-let g:deoplete#enable_at_startup = 1
+" let g:deoplete#enable_at_startup = 1
 
 "------------------------------------------------------------
 " ALE
@@ -375,15 +374,13 @@ Plug 'dense-analysis/ale'
 " Plug 'vim-syntastic/syntastic'
 Plug 'tpope/vim-surround'
 
+Plug 'Shougo/deoplete.nvim'
 Plug 'roxma/nvim-yarp'
 Plug 'roxma/vim-hug-neovim-rpc'
-Plug 'Shougo/deoplete.nvim'
-let g:deoplete#enable_at_startup = 1
-
 Plug 'chrisbra/csv.vim'
 Plug 'junegunn/fzf.vim'
 Plug 'jremmen/vim-ripgrep'
-Plug 'git@github.com:AndrewRadev/linediff.vim.git'
+"Plug 'git@github.com:AndrewRadev/linediff.vim.git'
 " Plug 'vim-perl/vim-perl'
 Plug 'scrooloose/nerdtree'
 "Plug 'Chiel92/vim-autoformat'

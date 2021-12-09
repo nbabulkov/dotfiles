@@ -15,6 +15,7 @@
     sha = stash apply
 	f = fetch -v --all
 	mg = merge
+    sm = submodule
 	rs = reset
 	rsh = reset --hard
     rst = restore --staged
