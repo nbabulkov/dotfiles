@@ -37,7 +37,7 @@ _homebrew-installed() {
 }
 
 _chruby-from-homebrew-installed() {
-  [ -r _brew_prefix ] &> /dev/null
+  [ -r $_brew_prefix ] &> /dev/null
 }
 
 _ruby-build_installed() {
@@ -111,5 +111,11 @@ function chruby_prompt_info() {
 }
 
 # complete on installed rubies
-_chruby() { compadd $(chruby | tr -d '* ') }
+_chruby() {
+    compadd $(chruby | tr -d '* ')
+    local default_path='/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin'
+    if PATH=${default_path} type ruby &> /dev/null; then
+        compadd system
+    fi
+}
 compdef _chruby chruby
