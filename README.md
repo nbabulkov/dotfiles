@@ -1,5 +1,4 @@
-# my dotfiles
-Configurations files and utility scripts used by me on Linux.
+# Dotfiles
 
 Includes configs for:
 - zsh
