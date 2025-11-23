@@ -1,0 +1,83 @@
+[core]
+	editor = vim
+	pager = diff-so-fancy | less --tabs=4 -RFX
+[alias]
+	ci = commit -S -v
+	cia = commit -S -v --amend
+	cl = clone
+    br = branch --sort=-committerdate
+	co = checkout
+	df = diff
+	dfc = diff --cached
+	st = status
+    stv = status -v
+    sh = stash
+    sha = stash apply
+    shp = stash pop
+	f = fetch -v --all
+	mg = merge
+    sm = submodule
+	rs = reset
+	rsh = reset --hard
+    rst = restore
+    rss = restore --staged
+	rb = rebase
+    cp = cherry-pick -x
+	rbi = rebase -i
+	rbc = rebase --continue
+	mg = merge
+	ps = push -v origin HEAD
+	ad = add -p
+	pl = pull -v --stat
+	plr = pull -v --stat --rebase
+	l = log --oneline
+	lp = log -p
+	lg = log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim white)- %an%C(reset)%C(bold yellow)%d%C(reset)' --all
+	lg1 = log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold cyan)%aD%C(reset) %C(bold green)(%ar)%C(reset)%C(bold yellow)%d%C(reset)%n''          %C(white)%s%C(reset) %C(dim white)- %an%C(reset)' --all
+	lgs = log --graph --simplify-by-decoration --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim white)- %an%C(reset)%C(bold yellow)%d%C    (reset)' --all
+[color]
+	diff = auto
+	status = auto
+	branch = auto
+	interactive = auto
+    pager = true
+	ui = true
+[color "status"]
+    added = green bold
+    changed = red bold
+    untracked = magenta bold
+[color "branch"]
+    remote = yellow
+[color "diff"]
+	new = green bold
+	meta = 11
+	frag = magenta bold
+	commit = yellow bold
+	old = red bold
+	whitespace = red reverse
+[diff]
+	tool = vimdiff
+[merge]
+	tool = vimdiff
+[color "diff-highlight"]
+	oldNormal = red bold
+	oldHighlight = red bold 52
+	newNormal = green bold
+	newHighlight = green bold 22
+[user]
+	email = nbabulkov@gmail.com
+	name = Nikolay Babulkov
+	signingkey = /Users/nbabulkov/.ssh/id_ed25519.pub
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+[gpg]
+	format = ssh
+[credential]
+	helper = osxkeychain
+[coderabbit]
+	machineId = cli/e92cc6585ce041a29cce17a28c5d54fb
+[init]
+	defaultBranch = main

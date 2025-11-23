@@ -7,3 +7,11 @@ Includes configs for:
 - vim
 - tmux
 - git
+- cursor
+- ghostty
+- nvim
+- tmux
+- git
+- cursor
+- ghostty
+- zellij
