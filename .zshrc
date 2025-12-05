@@ -1,3 +1,6 @@
+# If you come from bash you might have to change your $PATH.
+# export PATH=$HOME/bin:/usr/local/bin:$PATH
+
 # Path to your oh-my-zsh installation.
 export ZSH="$HOME/.oh-my-zsh"
 
@@ -5,9 +8,16 @@ export ZSH="$HOME/.oh-my-zsh"
 # load a random theme each time oh-my-zsh is loaded, in which case,
 # to know which specific one was loaded, run: echo $RANDOM_THEME
 # See https://github.com/ohmyzsh/ohmyzsh/wiki/Themes
-
-
 ZSH_THEME="jonathan"
+
+# Cool, but big and doesn't work in cursor
+# ZSH_THEME="powerlevel10k/powerlevel10k"
+
+# Set list of themes to pick from when loading at random
+# Setting this variable when ZSH_THEME=random will cause zsh to load
+# a theme from this variable instead of looking in $ZSH/themes/
+# If set to an empty array, this variable will have no effect.
+# ZSH_THEME_RANDOM_CANDIDATES=( "robbyrussell" "agnoster" )
 
 # Uncomment the following line to use case-sensitive completion.
 # CASE_SENSITIVE="true"
@@ -68,7 +78,7 @@ plugins=(
   gh
   tig
   golang
-#  tmux
+  tmux
   poetry
   python
   postgres
@@ -79,14 +89,13 @@ plugins=(
   vscode
   docker
   gcloud
+  nvm
   npm
   macos
   ssh-agent
   colored-man-pages
   web-search
-  zsh-nvm
   zsh-interactive-cd
-  # zsh-navigation-tools
   z
 )
 
@@ -114,5 +123,37 @@ fi
 # users are encouraged to define aliases within the ZSH_CUSTOM folder.
 # For a full list of active aliases, run `alias`.
 #
+[ -s ~/.bash_aliases ] && source ~/.bash_aliases
 
-[ -s "/Users/nbabulkov/.bash_aliases" ] && source "/Users/nbabulkov/.bash_aliases"
+export PATH="~/.local/bin:$PATH"
+export CLOUDSDK_PYTHON="~/.pyenv/shims/python3.10"
+
+if [ -d /opt/homebrew ]; then
+    export PATH="/opt/homebrew/bin:$PATH"
+    # Postgres
+    [ -d /opt/homebrew/opt/postgresql@18/bin ] && export PATH="/opt/homebrew/opt/postgresql@18/bin:$PATH"
+fi
+
+# Deno
+[ -s ~/.deno/env ] && source ~/.deno/env
+
+# bun completions
+[ -s ~/.bun/_bun ] && source ~/.bun/_bun
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+
+# Added by LM Studio CLI (lms)
+export PATH="$PATH:~/.cache/lm-studio/bin"
+
+# The following lines have been added by Docker Desktop to enable Docker CLI completions.
+fpath=(~/.docker/completions $fpath)
+autoload -Uz compinit
+compinit
+
+# End of Docker CLI completions
+
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
