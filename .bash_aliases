@@ -44,11 +44,6 @@ revfn() {
     $fn $last $others
 }
 
-# NVM NODE
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
-
 # MTR without GUI
 alias mtrc='mtr --curses'
 
@@ -60,16 +55,17 @@ alias dfh='df -h'
 alias disksize="df -h | grep '\s/$' --color=NEVER"
 
 # Edit aliases
-alias editalias='vim ~/.bash_aliases'
+alias editalias="$EDITOR ~/.bash_aliases"
 
 alias ssh-add-github='ssh-add ~/.ssh/github_rsa'
+alias ssh-add ~/.ssh/google_compute_engine
 
 alias gc="gcloud"
 alias myip='ip a | grep inet.*global --color=never'
 alias netres='service network-manager restart'
 alias ca='cursor-agent'
+alias v="$EDITOR"
 
-alias ohmyzsh="vim ~/.oh-my-zsh"
 alias g="git"
 alias p="pnpm"
 alias po="poetry"
@@ -100,10 +96,11 @@ alias wttr='curl wttr.in/sofia'
 alias services='systemctl list-unit-files | awk "/enabled/ {print \$1}"'
 
 # Edit configs
-alias vimrc='vim ~/.vimrc'
-alias zshrc='vim ~/.zshrc'
-alias sshconf='vim ~/.ssh/config'
-alias tmuxconf='vim ~/.tmux.conf'
+alias vimrc="$EDITOR ~/.vimrc"
+alias zshrc="$EDITOR ~/.zshrc"
+alias sshconf="$EDITOR ~/.ssh/config"
+alias tmuxconf="$EDITOR ~/.tmux.conf"
+alias ohmyzsh="$EDITOR ~/.oh-my-zsh"
 
 # Activate Python virtual env
 activate() {
