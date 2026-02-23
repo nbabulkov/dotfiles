@@ -8,7 +8,7 @@ export ZSH="$HOME/.oh-my-zsh"
 # load a random theme each time oh-my-zsh is loaded, in which case,
 # to know which specific one was loaded, run: echo $RANDOM_THEME
 # See https://github.com/ohmyzsh/ohmyzsh/wiki/Themes
-ZSH_THEME="jonathan"
+ZSH_THEME="my"
 
 # Cool, but big and doesn't work in cursor
 # ZSH_THEME="powerlevel10k/powerlevel10k"
@@ -125,8 +125,7 @@ fi
 #
 [ -s ~/.bash_aliases ] && source ~/.bash_aliases
 
-export PATH="~/.local/bin:$PATH"
-export CLOUDSDK_PYTHON="~/.pyenv/shims/python3.10"
+export PATH="$HOME/.local/bin:$PATH"
 
 if [ -d /opt/homebrew ]; then
     export PATH="/opt/homebrew/bin:$PATH"
@@ -145,7 +144,7 @@ export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
 
 # Added by LM Studio CLI (lms)
-export PATH="$PATH:~/.cache/lm-studio/bin"
+export PATH="$PATH:$HOME/.cache/lm-studio/bin"
 
 # The following lines have been added by Docker Desktop to enable Docker CLI completions.
 fpath=(~/.docker/completions $fpath)
@@ -157,3 +156,16 @@ compinit
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
+# Added by LM Studio CLI (lms)
+export PATH="$PATH:/Users/nbabulkov/.cache/lm-studio/bin"
+# End of LM Studio CLI section
+
+
+# Added by Antigravity
+export PATH="/Users/nbabulkov/.antigravity/antigravity/bin:$PATH"
+# The following lines have been added by Docker Desktop to enable Docker CLI completions.
+fpath=(/Users/nbabulkov/.docker/completions $fpath)
+autoload -Uz compinit
+compinit
+# End of Docker CLI completions

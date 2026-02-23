@@ -36,7 +36,7 @@ dirsize () {
 # Last argument becomes first
 revfn() {
     [[ $3 == "" ]] && echo "Usage: $0 [fn] [args...] [last]" && return 1
-    fn="$1"
+    local fn="$1"
     shift
     last="${@:$#}"
     ind=$(($# - 1))
@@ -58,25 +58,36 @@ alias disksize="df -h | grep '\s/$' --color=NEVER"
 alias editalias="$EDITOR ~/.bash_aliases"
 
 alias ssh-add-github='ssh-add ~/.ssh/github_rsa'
-alias ssh-add ~/.ssh/google_compute_engine
+alias ssh-add-google='ssh-add ~/.ssh/google_compute_engine'
 
+llm() {
+    local prompt="$1"
+    local model="$2"
+    if [ -z "$model" ]; then
+        local model="qwen/qwen3-4b-2507"
+    fi
+    lms chat "$model" -p "$prompt" | sd
+}
 alias gc="gcloud"
 alias myip='ip a | grep inet.*global --color=never'
 alias netres='service network-manager restart'
-alias ca='cursor-agent'
-alias v="$EDITOR"
 
+alias ze='zellij'
+alias e="$EDITOR"
 alias g="git"
 alias p="pnpm"
 alias po="poetry"
 alias tf="terraform"
 alias d="docker"
+alias t="tmux"
+alias cl="claude"
+alias lg="lazygit"
 
 # BG aliases
 alias вя='ls'
 alias вв='ll'
 alias ъа='cd'
-alias эсм='vim'
+alias вь='la'
 
 # Tmux 256 coloured
 alias tmux='tmux -2'
@@ -90,13 +101,18 @@ alias psgrep='ps axf | grep'
 # Alias for back
 alias cb='cd ..'
 
-alias wttr='curl wttr.in/sofia'
+# rm
+alias rmrf='rm -rf'
 
-# List services
-alias services='systemctl list-unit-files | awk "/enabled/ {print \$1}"'
+# Open postgresql as user postgres
+alias pgsql='psql -Upostgres'
+
+alias wttrsf='curl wttr.in/sofia'
+alias wttrld='curl wttr.in/london'
 
 # Edit configs
 alias vimrc="$EDITOR ~/.vimrc"
+alias nvimconf="$EDITOR ~/.config/nvim/init.lua"
 alias zshrc="$EDITOR ~/.zshrc"
 alias sshconf="$EDITOR ~/.ssh/config"
 alias tmuxconf="$EDITOR ~/.tmux.conf"
@@ -132,18 +148,12 @@ markdown() {
     pandoc "$1" | lynx -stdin
 }
 
-# rm
-alias rmrf='rm -rf'
-
 # Universal rm
 urm() {
     file="$1"
     [ -d "$file" ] && [ -z "$(ls -A $file)" ] && rmdir "$@" && return
     /bin/rm "$@"
 }
-
-# Open postgresql as user postgres
-alias pgsql='psql -Upostgres'
 
 # Reset
 Color_Off='\033[0m'       # Text Reset

@@ -69,5 +69,11 @@ palette = 14=#dfdffe
 palette = 15=#ffffff
 
 macos-option-as-alt = true
-
 bell-features = system
+
+link-url = true
+link-previews = true
+
+notify-on-command-finish = always
+notify-on-command-finish-action = bell
+notify-on-command-finish-after = 3s

@@ -1,11 +1,12 @@
 -- Neovim IDE Baseline (Python + TypeScript)
 -- Single-file init.lua aimed at stability and sane defaults.
 -- Features: file viewer, LSP, treesitter, completion, formatters, linters, debugger, Telescope search,
--- Git integration, and AI chat (multi-LLM via Continue.nvim; optional CodeCompanion).
+-- Git integration, and AI chat (CodeCompanion with Azure OpenAI + LM Studio local models).
 --
 -- Prereqs (system): ripgrep, node>=18, npm, python3-venv/pipx, git
--- Recommended global tools: `pipx install ruff debugpy` | `npm i -g typescript typescript-language-server eslint_d prettier`
--- Set API keys via env vars: OPENAI_API_KEY, ANTHROPIC_API_KEY (optional), OPENROUTER_API_KEY (optional)
+-- Recommended global tools: `pipx install ruff debugpy` | `npm i -g typescript typescript-language-server prettier`
+-- Set API keys via env vars: AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT
+-- Optional: LM Studio running on localhost:1234 for local models
 
 -- 0) Basic options
 vim.g.mapleader = ' '
@@ -19,194 +20,432 @@ vim.opt.timeoutlen = 400
 vim.opt.swapfile = false
 vim.opt.clipboard = 'unnamedplus'
 vim.opt.scrolloff = 5
-vim.o.tabstop = 4 -- A TAB character looks like 4 spaces
-vim.o.expandtab = true -- Pressing the TAB key will insert spaces instead of a TAB character
-vim.o.softtabstop = 4 -- Number of spaces inserted instead of a TAB character
-vim.o.shiftwidth = 4 -- Number of spaces inserted when indenting
+vim.opt.expandtab = false -- use actual tab characters
+vim.opt.tabstop = 4       -- tab width display
+vim.opt.shiftwidth = 4    -- indent width with >> etc.
 vim.opt.list = true
 vim.opt.listchars = {
-  space = "·",   -- visible spaces
-  tab = "→ ",    -- visible tabs
-  trail = "$",   -- trailing spaces
-  extends = ">", -- lines too long
-  precedes = "<" -- lines that continue left
+	space = "·", -- visible spaces (UTF-8 middle dot U+00B7)
+	tab = "→ ", -- visible tabs (UTF-8 rightwards arrow U+2192)
+	trail = "$", -- trailing spaces
+	extends = ">", -- lines too long
+	precedes = "<" -- lines that continue left
 }
-vim.g.codecompanion_adapter = "azure_openai"
 
 -- 1) Bootstrap lazy.nvim
 local lazypath = vim.fn.stdpath('data') .. '/lazy/lazy.nvim'
 if not vim.loop.fs_stat(lazypath) then
-  vim.fn.system({ 'git', 'clone', '--filter=blob:none', 'https://github.com/folke/lazy.nvim.git', '--branch=stable', lazypath })
+	vim.fn.system({ 'git', 'clone', '--filter=blob:none', 'https://github.com/folke/lazy.nvim.git', '--branch=stable',
+		lazypath })
 end
 vim.opt.rtp:prepend(lazypath)
 
 -- 2) Plugins
 require('lazy').setup({
-  -- UI / UX
-  { 'echasnovski/mini.nvim', version = '*' },
-  { 'folke/tokyonight.nvim', lazy = false, priority = 1000 },
-  { 'nvim-lualine/lualine.nvim', dependencies = { 'nvim-tree/nvim-web-devicons' } },
-  { 'folke/which-key.nvim', opts = {} },
+	-- Themes
+	{ 'folke/tokyonight.nvim',       lazy = false,                                    priority = 1000 },
+	{
+		"tiagovla/tokyodark.nvim",
+		opts = {
+			-- custom options here
+		},
+		config = function(_, opts)
+			require("tokyodark").setup(opts) -- calling setup is optional
+			vim.cmd [[colorscheme tokyodark]]
+		end,
+	},
+	{ "bluz71/vim-moonfly-colors",   name = "moonfly",                                lazy = false,   priority = 1000 },
 
-  -- File explorer
-  { 'nvim-neo-tree/neo-tree.nvim', branch = 'v3.x', dependencies = { 'nvim-lua/plenary.nvim', 'nvim-tree/nvim-web-devicons', 'MunifTanjim/nui.nvim' } },
+	-- UI / UX
+	{ 'nvim-lualine/lualine.nvim',   dependencies = { 'nvim-tree/nvim-web-devicons' } },
+	{ "nvim-tree/nvim-web-devicons", opts = {} }, { 'folke/which-key.nvim', opts = {} },
+	{
+		"levouh/tint.nvim",
+		config = function()
+			require("tint").setup({
+				tint = -30, -- how much to darken (more negative = darker)
+				saturation = 0.5, -- reduce color saturation in unfocused windows
+				highlight_ignore_patterns = {},
+				tint_background_colors = true,
+			})
+		end,
+	},
 
-  -- Git
-  { 'lewis6991/gitsigns.nvim', opts = {} },
-  { 'NeogitOrg/neogit', dependencies = { 'nvim-lua/plenary.nvim', 'sindrets/diffview.nvim' } },
+	{
+		"folke/snacks.nvim",
+		priority = 1000,
+		lazy = false,
+		---@type snacks.Config
+		opts = {
+			-- your configuration comes here
+			-- or leave it empty to use the default settings
+			-- refer to the configuration section below
+			bigfile = { enabled = true },
+			dashboard = { enabled = true },
+			explorer = { enabled = true },
+			indent = { enabled = true },
+			input = { enabled = true },
+			picker = { enabled = true },
+			notifier = { enabled = true },
+			quickfile = { enabled = true },
+			scope = { enabled = true },
+			scroll = { enabled = true },
+			statuscolumn = { enabled = true },
+			words = { enabled = true },
+		},
+	},
 
-  -- Telescope (code search, files, symbols)
-  { 'nvim-telescope/telescope.nvim', tag = '0.1.5', dependencies = { 'nvim-lua/plenary.nvim' } },
-  { 'nvim-telescope/telescope-fzf-native.nvim', build = 'make' },
-  { 'nvim-telescope/telescope-live-grep-args.nvim' },
+	-- mini.nvim modules (only load what we use)
+	{ 'echasnovski/mini.pairs',    version = '*', opts = {} },
+	{ 'echasnovski/mini.surround', version = '*', opts = {} },
 
-  -- Treesitter
-  { 'nvim-treesitter/nvim-treesitter', build = ':TSUpdate' },
+	-- Lua LSP support for Neovim config editing
+	{ 'folke/lazydev.nvim',        ft = 'lua',    opts = {} },
 
-  -- LSP + tooling
-  { 'neovim/nvim-lspconfig' },
-  { 'williamboman/mason.nvim', build = ':MasonUpdate' },
-  { 'williamboman/mason-lspconfig.nvim' },
-  { 'WhoIsSethDaniel/mason-tool-installer.nvim' },
+	-- File explorer
+	{
+		'nvim-neo-tree/neo-tree.nvim',
+		branch = 'v3.x',
+		dependencies = { 'nvim-lua/plenary.nvim', 'nvim-tree/nvim-web-devicons', 'MunifTanjim/nui.nvim' }
+	},
 
-  -- Completion
-  { 'hrsh7th/nvim-cmp' },
-  { 'hrsh7th/cmp-nvim-lsp' },
-  { 'hrsh7th/cmp-buffer' },
-  { 'hrsh7th/cmp-path' },
-  {
-    'L3MON4D3/LuaSnip',
-     version = "v2.*", -- Replace <CurrentMajor> by the latest released major (first number of latest release)
-     build = "make install_jsregexp"
-  },
-  { 'saadparwaiz1/cmp_luasnip' },
-  { 'onsails/lspkind.nvim' },
+	-- Git
+	{ 'lewis6991/gitsigns.nvim',                     opts = {} },
+	{
+		'NeogitOrg/neogit',
+		opts = {
+			graph_style = "kitty",
+		},
+		dependencies = { 'nvim-lua/plenary.nvim', 'sindrets/diffview.nvim' }
+	},
 
-  -- Formatting & linting
-  { 'stevearc/conform.nvim' },
-  { 'mfussenegger/nvim-lint' },
+	-- Telescope (code search, files, symbols)
+	{ 'nvim-telescope/telescope.nvim',               tag = '0.1.5',         dependencies = { 'nvim-lua/plenary.nvim' } },
+	{ 'nvim-telescope/telescope-fzf-native.nvim',    build = 'make' },
+	{ 'nvim-telescope/telescope-live-grep-args.nvim' },
 
-  -- Debugger
-  { 'mfussenegger/nvim-dap' },
-  { 'rcarriga/nvim-dap-ui', dependencies = { 'nvim-neotest/nvim-nio' } },
-  { 'jay-babu/mason-nvim-dap.nvim' },
-  { 'mxsdev/nvim-dap-vscode-js' },
+	-- Treesitter
+	{ 'nvim-treesitter/nvim-treesitter',             build = ':TSUpdate' },
 
-  -- AI/LLMs
-  {
-    "olimorris/codecompanion.nvim",
-    opts = {
+	-- LSP + tooling
+	{ 'neovim/nvim-lspconfig' },
+	{ 'williamboman/mason.nvim',                     build = ':MasonUpdate' },
+	{ 'williamboman/mason-lspconfig.nvim' },
+	{ 'WhoIsSethDaniel/mason-tool-installer.nvim' },
 
-    adapters = {
-        azure_openai = function()
-          return require("codecompanion.adapters").extend("azure_openai", {
-            env = {
-              api_key = os.getenv("AZURE_OPENAI_API_KEY"),
-              endpoint = os.getenv("AZURE_OPENAI_ENDPOINT"),
-              api_version = "2025-04-01-preview",
-            },
-            schema = {
-                model = {
-                    default = "gpt-5-mini-devel",
-                    choices = {
-                        "gpt-5-mini-devel",
-                    },
-                },
-            },
-          })
-        end,
-      },
-      strategies = {
-        chat = {
-          adapter = "azure_openai",
-        },
-        inline = {
-          adapter = "azure_openai",
-        },
-        cmd = {
-          adapter = "azure_openai",
-        },
-      },
-      opts = {
-        -- Set debug logging
-        log_level = "DEBUG",
-      },
-    },
-    dependencies = {
-       "nvim-lua/plenary.nvim",
-       "nvim-treesitter/nvim-treesitter",
-       "ravitemer/mcphub.nvim",
-    },
-    extensions = {
-     mcphub = {
-          callback = "mcphub.extensions.codecompanion",
-          opts = {
-            make_vars = true,
-            make_slash_commands = true,
-            show_result_in_chat = true
-          }
-        }
-      }
-  },
+	-- Completion
+	{ 'hrsh7th/nvim-cmp' },
+	{ 'hrsh7th/cmp-nvim-lsp' },
+	{ 'hrsh7th/cmp-buffer' },
+	{ 'hrsh7th/cmp-path' },
+	{
+		'L3MON4D3/LuaSnip',
+		version = "v2.*",
+		build = "make install_jsregexp"
+	},
+	{ 'saadparwaiz1/cmp_luasnip' },
+	{ 'onsails/lspkind.nvim' },
+
+	-- Formatting & linting
+	{ 'stevearc/conform.nvim' },
+	{ 'mfussenegger/nvim-lint' },
+
+	-- Debugger
+	{ 'mfussenegger/nvim-dap' },
+	{ 'rcarriga/nvim-dap-ui',        dependencies = { 'nvim-neotest/nvim-nio' } },
+	{ 'jay-babu/mason-nvim-dap.nvim' },
+	{ 'mxsdev/nvim-dap-vscode-js' },
+
+	-- Database (SQL)
+	{ 'tpope/vim-dadbod',            lazy = true },
+	{
+		'kristijanhusak/vim-dadbod-ui',
+		dependencies = { 'tpope/vim-dadbod' },
+		cmd = { 'DBUI', 'DBUIToggle', 'DBUIAddConnection', 'DBUIFindBuffer' },
+		init = function()
+			vim.g.db_ui_use_nerd_fonts = 1
+			vim.g.db_ui_execute_on_save = false -- don't auto-execute on save, use <leader>S instead
+			vim.g.db_ui_win_position = 'right'
+		end,
+	},
+	{ 'kristijanhusak/vim-dadbod-completion', ft = { 'sql', 'mysql', 'plsql' }, lazy = true },
+
+	-- AI/LLMs
+	{
+		"olimorris/codecompanion.nvim",
+		opts = {
+			adapters = {
+				-- LM Studio local models (OpenAI-compatible API on localhost:1234)
+				lmstudio = function()
+					return require("codecompanion.adapters").extend("openai_compatible", {
+						env = {
+							url = "http://localhost:1234",
+							api_key = "lm-studio",
+						},
+						schema = {
+							model = {
+								default = "qwen/qwen3-4b-2507",
+							},
+						},
+					})
+				end,
+				acp = {
+					claude_code = function()
+						return require("codecompanion.adapters").extend("claude_code", {
+							env = {
+								CLAUDE_CODE_OAUTH_TOKEN =
+								"5QVF4RzMKdyXa6zlXiU2HMXmNslKl69lRth0L1BmgDtVSfuH#_q0U8DutBsmqxHvGiUm4o-5LpF9BaBDq6vQfXP7G69A",
+							},
+						})
+					end,
+				},
+			},
+			strategies = {
+				chat = {
+					adapter = {
+						name = "claude_code",
+						model = "opus", -- or "sonnet"
+					},
+				},
+				inline = {
+					adapter = "lmstudio",
+				},
+				cmd = {
+					adapter = "lmstudio",
+				},
+			},
+			opts = {
+				log_level = "DEBUG",
+			},
+		},
+		dependencies = {
+			"nvim-lua/plenary.nvim",
+			"nvim-treesitter/nvim-treesitter",
+			"ravitemer/mcphub.nvim",
+		},
+		extensions = {
+			mcphub = {
+				callback = "mcphub.extensions.codecompanion",
+				opts = {
+					make_vars = true,
+					make_slash_commands = true,
+					show_result_in_chat = true
+				}
+			}
+		}
+	},
 
 }, {
-  checker = { enabled = false },
+	checker = { enabled = false },
 })
 
 -- 3) Colorscheme & statusline
-vim.cmd.colorscheme('tokyonight')
-require('lualine').setup({ options = { theme = 'auto' } })
+vim.cmd.colorscheme('moonfly')
+vim.api.nvim_create_autocmd("ColorScheme", {
+	callback = function()
+		vim.api.nvim_set_hl(0, "NormalNC", { bg = "#121212", fg = "#555555" })
+	end,
+})
+require('lualine').setup({
+	options = { theme = 'auto' },
+	sections = {
+		lualine_c = {
+			{ 'filename', path = 3, shorting_target = 0 }, -- 3=absolute with ~ for home, shorting_target=0 disables truncation
+		},
+	},
+})
 
--- 4) which-key hints
+-- 4) Keymaps (all leader + global keymaps in one place via which-key)
 local wk = require('which-key')
 wk.add({
-    { "<leader>a", group = "AI" },
-    { "<leader>aa", function() require('codecompanion').toggle() end, desc = "Toggle LLMs" },
-    { "<leader>d", group = "Debug" },
-    { "<leader>db", function() require('dap').toggle() end, desc = "Toggle BP" },
-    { "<leader>dc", function() require('dap').continue() end, desc = "Continue" },
-    { "<leader>di", function() require('dap').step_into() end, desc = "Step Into" },
-    { "<leader>do", function() require('dap').step_over() end, desc = "Step Over" },
-    { "<leader>du", function() require('dapui').toggle() end, desc = "DAP UI" },
-    { "<leader>e",  function() vim.cmd('Neotree toggle') end, desc = "Explorer" },
-    { "<leader>f", group = "Find" },
-    { "<leader>ff", function() require('telescope.builtin').find_files() end, desc = "Files" },
-    { "<leader>fb", function() require('telescope.builtin').buffers() end, desc = "Buffers" },
-    { "<leader>fg", function() require('telescope').extensions.live_grep_args.live_grep_args() end, desc = "Grep" },
-    { "<leader>fs", function() require('telescope.builtin').lsp_dynamic_workspace_symbols() end, desc = "Symbols" },
-    { "<leader>g", group = "Git" },
-    { "<leader>gd", function() require('diffview').open() end, desc = "DiffView" },
-    { "<leader>gg", function() require('neogit').open({ kind = 'vsplit' }) end, desc = "Neogit" },
-    { "<leader>l", group = "LSP" },
-    { "<leader>lf", function() require('conform').format({ async = true, lsp_fallback = true }) end, desc = "Format" },
-    { "<leader>la", function() vim.lsp.buf.code_action() end,  desc = "Code Action" },
-    { "<leader>lr", function() vim.lsp.buf.rename() end, desc = "Rename" },
+	-- AI
+	{ "<leader>a",  group = "AI" },
+	{ "<leader>aa", function() require('codecompanion').toggle() end,                               desc = "Toggle chat" },
+	{ "<leader>ac", function() vim.cmd('CodeCompanionActions') end,                                 desc = "Actions menu" },
+	{ "<leader>ac", function() vim.cmd('CodeCompanionActions') end,                                 desc = "Actions menu",          mode = "v" },
+	{ "<leader>ai", ":'<,'>CodeCompanion ",                                                         desc = "Inline prompt",         mode = "v" },
+	{ "<leader>av", function() vim.cmd('CodeCompanionChat Add') end,                                desc = "Add selection to chat", mode = "v" },
+	{ "<leader>ae", function() require('codecompanion').prompt('explain') end,                      desc = "Explain code",          mode = "v" },
+	{ "<leader>af", function() require('codecompanion').prompt('fix') end,                          desc = "Fix code",              mode = "v" },
+	{ "<leader>at", function() require('codecompanion').prompt('tests') end,                        desc = "Generate tests",        mode = "v" },
+	{ "<leader>al", function() require('codecompanion').prompt('lsp') end,                          desc = "Explain LSP diagnostic" },
+	{ "<leader>am", function() require('codecompanion').prompt('commit') end,                       desc = "Commit message" },
+
+	-- Buffers
+	{ "<leader>b",  group = "Buffer" },
+	{ "<leader>bb", function() require('telescope.builtin').buffers() end,                          desc = "List buffers" },
+	{ "<leader>bd", function() vim.cmd('bdelete') end,                                              desc = "Close buffer" },
+
+	-- Debug
+	{ "<leader>d",  group = "Debug" },
+	{ "<leader>db", function() require('dap').toggle_breakpoint() end,                              desc = "Toggle BP" },
+	{ "<leader>dc", function() require('dap').continue() end,                                       desc = "Continue" },
+	{ "<leader>di", function() require('dap').step_into() end,                                      desc = "Step Into" },
+	{ "<leader>do", function() require('dap').step_over() end,                                      desc = "Step Over" },
+	{ "<leader>dO", function() require('dap').step_out() end,                                       desc = "Step Out" },
+	{ "<leader>dr", function() require('dap').run_to_cursor() end,                                  desc = "Run to cursor" },
+	{ "<leader>dt", function() require('dap').terminate() end,                                      desc = "Terminate" },
+	{ "<leader>de", function() require('dapui').eval() end,                                         desc = "Eval expression" },
+	{ "<leader>de", function() require('dapui').eval() end,                                         desc = "Eval selection",        mode = "v" },
+	{ "<leader>du", function() require('dapui').toggle() end,                                       desc = "DAP UI" },
+
+	-- Explore
+	{ "<leader>e",  group = "Explore" },
+	{ "<leader>ee", function() vim.cmd('Neotree toggle') end,                                       desc = "Neotree Toggle" },
+	{ "<leader>er", function() vim.cmd('Neotree reveal') end,                                       desc = "Neotree Reveal file" },
+	{ "<leader>eb", function() vim.cmd('Neotree toggle source=buffers') end,                        desc = "Neotree Buffers" },
+
+	-- Tabs
+	{ "<leader>t",  group = "Tab" },
+	{ "<leader>tc", function() vim.cmd('tabnew') end,                                               desc = "New tab" },
+	{ "<leader>tx", function() vim.cmd('tabclose') end,                                             desc = "Close tab" },
+	{ "<leader>to", function() vim.cmd('tabonly') end,                                              desc = "Close other tabs" },
+
+	-- Find (Telescope)
+	{ "<leader>f",  group = "Find" },
+	{ "<leader>ff", function() require('telescope.builtin').find_files() end,                       desc = "Files" },
+	{ "<leader>fb", function() require('telescope.builtin').buffers() end,                          desc = "Buffers" },
+	{ "<leader>fg", function() require('telescope').extensions.live_grep_args.live_grep_args() end, desc = "Grep" },
+	{ "<leader>fs", function() require('telescope.builtin').lsp_workspace_symbols() end,            desc = "Symbols" },
+	{ "<leader>fr", function() require('telescope.builtin').oldfiles() end,                         desc = "Recent files" },
+	{ "<leader>fh", function() require('telescope.builtin').help_tags() end,                        desc = "Help tags" },
+	{ "<leader>fk", function() require('telescope.builtin').keymaps() end,                          desc = "Keymaps" },
+	{ "<leader>fd", function() require('telescope.builtin').diagnostics() end,                      desc = "Diagnostics" },
+	{ "<leader>fc", function() require('telescope.builtin').git_commits() end,                      desc = "Git commits" },
+	{ "<leader>fB", function() require('telescope.builtin').git_branches() end,                     desc = "Git branches" },
+	{ "<leader>f.", function() require('telescope.builtin').resume() end,                           desc = "Resume last" },
+
+	-- Git
+	{ "<leader>g",  group = "Git" },
+	{ "<leader>gb", function() require('gitsigns').blame_line({ full = true }) end,                 desc = "Blame line" },
+	{ "<leader>gB", function() require('gitsigns').toggle_current_line_blame() end,                 desc = "Toggle inline blame" },
+	{
+		"<leader>gd",
+		function()
+			local ok, lib = pcall(require, 'diffview.lib')
+			if ok and #lib.views > 0 then vim.cmd('DiffviewClose') else vim.cmd('DiffviewOpen') end
+		end,
+		desc = "DiffView toggle"
+	},
+	{ "<leader>gg",    function() require('neogit').open() end,                                         desc = "Neogit" },
+	{ "<leader>gh",    function() vim.cmd('DiffviewFileHistory %') end,                                 desc = "File history" },
+	{ "<leader>gH",    function() vim.cmd('DiffviewFileHistory') end,                                   desc = "Repo history" },
+	{ "<leader>gl",    function() require('neogit').open({ 'log' }) end,                                desc = "Log" },
+	{ "<leader>gp",    function() require('gitsigns').preview_hunk() end,                               desc = "Preview hunk" },
+	{ "<leader>gs",    function() require('gitsigns').stage_hunk() end,                                 desc = "Stage hunk" },
+	{ "<leader>gu",    function() require('gitsigns').undo_stage_hunk() end,                            desc = "Undo stage hunk" },
+	{ "<leader>gr",    function() require('gitsigns').reset_hunk() end,                                 desc = "Reset hunk" },
+	{ "<leader>gS",    function() require('gitsigns').stage_buffer() end,                               desc = "Stage buffer" },
+	{ "<leader>gR",    function() require('gitsigns').reset_buffer() end,                               desc = "Reset buffer" },
+	{ "]c",            function() require('gitsigns').nav_hunk('next') end,                             desc = "Next hunk" },
+	{ "[c",            function() require('gitsigns').nav_hunk('prev') end,                             desc = "Prev hunk" },
+
+	-- LSP
+	{ "<leader>l",     group = "LSP" },
+	{ "<leader>lf",    function() require('conform').format({ async = true, lsp_fallback = true }) end, desc = "Format" },
+	{ "<leader>la",    function() vim.lsp.buf.code_action() end,                                        desc = "Code Action" },
+	{ "<leader>lr",    function() vim.lsp.buf.rename() end,                                             desc = "Rename" },
+	{ "<leader>lt",    function() vim.lsp.buf.type_definition() end,                                    desc = "Type definition" },
+	{ "<leader>ls",    function() require('telescope.builtin').lsp_document_symbols() end,              desc = "Document symbols" },
+	{ "<leader>lk",    function() vim.lsp.buf.signature_help() end,                                     desc = "Signature help" },
+
+	-- Diagnostics
+	{ "<leader>o",     vim.diagnostic.open_float,                                                       desc = "Diagnostics float" },
+	{ "]d",            function() vim.diagnostic.goto_next() end,                                       desc = "Next diagnostic" },
+	{ "[d",            function() vim.diagnostic.goto_prev() end,                                       desc = "Prev diagnostic" },
+
+	-- Database
+	{ "<leader>D",     group = "Database" },
+	{ "<leader>Du",    function() vim.cmd('DBUIToggle') end,                                            desc = "Toggle DBUI" },
+	{ "<leader>Da",    function() vim.cmd('DBUIAddConnection') end,                                     desc = "Add connection" },
+	{ "<leader>Df",    function() vim.cmd('DBUIFindBuffer') end,                                        desc = "Find buffer" },
+	{ "<leader>De",    "<Plug>(DBUI_ExecuteQuery)",                                                     mode = { "n", "v" },             desc = "Execute query" },
+	{ "<leader>Ds",    "<Plug>(DBUI_SaveQuery)",                                                        desc = "Save query" },
+
+	-- Windows
+	{ "<leader>w",     group = "Window" },
+	{ "<leader>wh",    "<C-w>h",                                                                        desc = "Move left" },
+	{ "<leader>wj",    "<C-w>j",                                                                        desc = "Move down" },
+	{ "<leader>wk",    "<C-w>k",                                                                        desc = "Move up" },
+	{ "<leader>wl",    "<C-w>l",                                                                        desc = "Move right" },
+	{ "<leader>wv",    function() vim.cmd('vsplit') end,                                                desc = "Vertical split" },
+	{ "<leader>ws",    function() vim.cmd('split') end,                                                 desc = "Horizontal split" },
+	{ "<leader>wq",    function() vim.cmd('close') end,                                                 desc = "Close window" },
+	{ "<leader>wo",    function() vim.cmd('only') end,                                                  desc = "Close other windows" },
+	{ "<leader>w=",    function() vim.cmd('wincmd =') end,                                              desc = "Equal width" },
+
+	-- Misc
+	{ "<leader>qq",    function() vim.cmd('qa') end,                                                    desc = "Quit all" },
+	{ "<leader><Esc>", function() vim.cmd('noh') end,                                                   desc = "No highlight" },
+	{ "<leader>sa",    "ggVG",                                                                          desc = "Select all" },
+	{ "<leader>P",     function() vim.cmd('Lazy') end,                                                  desc = "Plugin manager" },
+	{ "<leader>tn",    function() vim.o.relativenumber = not vim.o.relativenumber end,                  desc = "Toggle relative numbers" },
 })
+
+-- Tab cycling
+vim.keymap.set('n', '<A-Tab>', function() vim.cmd('tabnext') end, { desc = 'Next tab' })
+vim.keymap.set('n', '<A-S-Tab>', function() vim.cmd('tabprevious') end, { desc = 'Prev tab' })
+vim.keymap.set('n', '<leader>1', '1gt', { desc = 'Tab 1' })
+vim.keymap.set('n', '<leader>2', '2gt', { desc = 'Tab 2' })
+vim.keymap.set('n', '<leader>3', '3gt', { desc = 'Tab 3' })
+vim.keymap.set('n', '<leader>4', '4gt', { desc = 'Tab 4' })
+vim.keymap.set('n', '<leader>5', '5gt', { desc = 'Tab 5' })
+
+-- Buffer cycling (non-leader, normal mode only — no conflict with cmp Tab in insert mode)
+vim.keymap.set('n', '<Tab>', function() vim.cmd('bnext') end, { desc = 'Next buffer' })
+vim.keymap.set('n', '<S-Tab>', function() vim.cmd('bprevious') end, { desc = 'Prev buffer' })
+
+-- Window navigation with Ctrl+hjkl
+vim.keymap.set('n', '<C-h>', '<C-w>h', { desc = 'Move to left window' })
+vim.keymap.set('n', '<C-j>', '<C-w>j', { desc = 'Move to below window' })
+vim.keymap.set('n', '<C-k>', '<C-w>k', { desc = 'Move to above window' })
+vim.keymap.set('n', '<C-l>', '<C-w>l', { desc = 'Move to right window' })
+
+-- Resize windows with Ctrl+arrows
+vim.keymap.set('n', '<C-Up>', function() vim.cmd('resize +2') end, { desc = 'Increase height' })
+vim.keymap.set('n', '<C-Down>', function() vim.cmd('resize -2') end, { desc = 'Decrease height' })
+vim.keymap.set('n', '<C-Left>', function() vim.cmd('vertical resize -2') end, { desc = 'Decrease width' })
+vim.keymap.set('n', '<C-Right>', function() vim.cmd('vertical resize +2') end, { desc = 'Increase width' })
 
 -- 5) Telescope setup
 local telescope = require('telescope')
-telescope.setup({ defaults = { mappings = { i = { ['<C-u>'] = false, ['<C-d>'] = false } } } })
+local actions = require('telescope.actions')
+telescope.setup({
+	defaults = {
+		mappings = {
+			i = {
+				['<C-u>'] = false,
+				['<C-d>'] = false,
+				['<C-j>'] = actions.move_selection_next,
+				['<C-k>'] = actions.move_selection_previous,
+				['<PageDown>'] = actions.results_scrolling_down,
+				['<PageUp>'] = actions.results_scrolling_up,
+			},
+		},
+	},
+})
 telescope.load_extension('fzf')
 telescope.load_extension('live_grep_args')
 
 -- 6) Treesitter
 require('nvim-treesitter.configs').setup({
-  ensure_installed = { 'lua', 'vim', 'vimdoc', 'query', 'python', 'javascript', 'typescript', 'tsx', 'json', 'yaml', 'bash', 'markdown' },
-  highlight = { enable = true },
-  indent = { enable = true },
+	ensure_installed = { 'lua', 'vim', 'vimdoc', 'query', 'python', 'javascript', 'typescript', 'tsx', 'json', 'yaml', 'bash', 'markdown', 'sql' },
+	highlight = { enable = true },
+	indent = { enable = true },
 })
 
 -- 7) Mason: LSP, DAP, and external tools
+-- NOTE: ESLint runs via nvim-lint (eslint_d) only — removed from mason-lspconfig to avoid double diagnostics
 require('mason').setup()
-require('mason-lspconfig').setup({ ensure_installed = { 'pyright', 'ruff', 'ts_ls', 'eslint', 'bashls', 'jsonls', 'yamlls' } })
+require('mason-lspconfig').setup({ ensure_installed = { 'pyright', 'ruff', 'ts_ls', 'lua_ls', 'bashls', 'jsonls', 'yamlls' } }) -- FIX: removed 'eslint' to avoid duplicate diagnostics; added lua_ls for lazydev
 require('mason-tool-installer').setup({
-  ensure_installed = {
-    -- linters/formatters
-    'ruff', 'prettier', 'eslint_d',
-    -- debug adapters
-    'debugpy', 'js-debug-adapter',
-  },
-  run_on_start = true,
+	ensure_installed = {
+		-- linters/formatters
+		'ruff', 'prettier', 'biome', 'eslint_d', 'sqruff',
+		-- debug adapters
+		'debugpy', 'js-debug-adapter',
+	},
+	run_on_start = true,
 })
 
 -- 8) Completion (cmp)
@@ -214,79 +453,143 @@ local cmp = require('cmp')
 local luasnip = require('luasnip')
 local lspkind = require('lspkind')
 require('cmp').setup({
-  snippet = { expand = function(args) luasnip.lsp_expand(args.body) end },
-  mapping = cmp.mapping.preset.insert({
-    ['<C-Space>'] = cmp.mapping.complete(),
-    ['<CR>'] = cmp.mapping.confirm({ select = true }),
-    ['<Tab>'] = cmp.mapping(function(fallback)
-      if cmp.visible() then cmp.select_next_item() elseif luasnip.expand_or_jumpable() then luasnip.expand_or_jump() else fallback() end
-    end, { 'i', 's' }),
-    ['<S-Tab>'] = cmp.mapping(function(fallback)
-      if cmp.visible() then cmp.select_prev_item() elseif luasnip.jumpable(-1) then luasnip.jump(-1) else fallback() end
-    end, { 'i', 's' }),
-  }),
-  sources = cmp.config.sources({ { name = 'nvim_lsp' }, { name = 'path' }, { name = 'buffer' } }),
-  formatting = { format = lspkind.cmp_format({ mode = 'symbol_text', maxwidth = 50 }) },
+	snippet = { expand = function(args) luasnip.lsp_expand(args.body) end },
+	mapping = cmp.mapping.preset.insert({
+		['<C-Space>'] = cmp.mapping.complete(),
+		['<CR>'] = cmp.mapping.confirm({ select = true }),
+		['<Tab>'] = cmp.mapping(function(fallback)
+			if cmp.visible() then
+				cmp.select_next_item()
+			elseif luasnip.expand_or_jumpable() then
+				luasnip.expand_or_jump()
+			else
+				fallback()
+			end
+		end, { 'i', 's' }),
+		['<S-Tab>'] = cmp.mapping(function(fallback)
+			if cmp.visible() then cmp.select_prev_item() elseif luasnip.jumpable(-1) then luasnip.jump(-1) else fallback() end
+		end, { 'i', 's' }),
+	}),
+	sources = cmp.config.sources({
+		{ name = 'nvim_lsp' },
+		{ name = 'luasnip' }, -- FIX: was missing despite cmp_luasnip being installed
+		{ name = 'path' },
+		{ name = 'buffer' },
+	}),
+	formatting = { format = lspkind.cmp_format({ mode = 'symbol_text', maxwidth = 50 }) },
 })
 
--- 9) LSP servers
-local lspconfig = require('lspconfig')
+-- SQL completion via dadbod
+vim.api.nvim_create_autocmd('FileType', {
+	pattern = { 'sql', 'mysql', 'plsql' },
+	callback = function()
+		cmp.setup.buffer({
+			sources = cmp.config.sources({
+				{ name = 'vim-dadbod-completion' },
+				{ name = 'buffer' },
+			}),
+		})
+	end,
+})
+
+-- 9) LSP servers (Neovim 0.11+ native vim.lsp.config API)
 local capabilities = require('cmp_nvim_lsp').default_capabilities()
 
+-- Global defaults for all servers
+vim.lsp.config('*', {
+	capabilities = capabilities,
+})
+
 -- Python: Ruff for linting/formatting, Pyright for typing
-lspconfig.ruff.setup({ capabilities = capabilities })
-lspconfig.pyright.setup({ capabilities = capabilities })
+vim.lsp.config('ruff', {})
+vim.lsp.config('pyright', {})
 
 -- TypeScript/JavaScript
-lspconfig.ts_ls.setup({ capabilities = capabilities })
+vim.lsp.config('ts_ls', {})
 
 -- JSON / YAML / Bash
-lspconfig.jsonls.setup({ capabilities = capabilities })
-lspconfig.yamlls.setup({ capabilities = capabilities })
-lspconfig.bashls.setup({ capabilities = capabilities })
+vim.lsp.config('jsonls', {})
+vim.lsp.config('yamlls', {})
+vim.lsp.config('bashls', {})
 
--- LSP keymaps
+-- Lua (Neovim config editing — lazydev.nvim provides vim.* completions)
+vim.lsp.config('lua_ls', {
+	settings = {
+		Lua = {
+			workspace = { checkThirdParty = false },
+			telemetry = { enable = false },
+		},
+	},
+})
+
+-- Enable all configured servers
+vim.lsp.enable({ 'ruff', 'pyright', 'ts_ls', 'jsonls', 'yamlls', 'bashls', 'lua_ls' })
+
+-- LSP keymaps (buffer-local, set on attach)
 vim.api.nvim_create_autocmd('LspAttach', {
-  callback = function(args)
-    local bufnr = args.buf
-    local function map(mode, lhs, rhs, desc)
-      vim.keymap.set(mode, lhs, rhs, { buffer = bufnr, desc = desc })
-    end
-    map('n', 'gd', vim.lsp.buf.definition, 'Goto Def')
-    map('n', 'gr', vim.lsp.buf.references, 'Refs')
-    map('n', 'gi', vim.lsp.buf.implementation, 'Impl')
-    map('n', 'K', vim.lsp.buf.hover, 'Hover')
-    map('n', '<leader>lf', function() require('conform').format({ async = true, lsp_fallback = true }) end, 'Format')
-  end,
+	callback = function(args)
+		local bufnr = args.buf
+		local function map(mode, lhs, rhs, desc)
+			vim.keymap.set(mode, lhs, rhs, { buffer = bufnr, desc = desc })
+		end
+		map('n', 'gd', vim.lsp.buf.definition, 'Goto Def')
+		map('n', 'gr', vim.lsp.buf.references, 'Refs')
+		map('n', 'gi', vim.lsp.buf.implementation, 'Impl')
+		map('n', 'K', vim.lsp.buf.hover, 'Hover')
+		map('n', '<leader>lf', function() require('conform').format({ async = true, lsp_fallback = true }) end, 'Format')
+	end,
 })
 
 -- 10) Format on save via conform
-require('conform').setup({
-  formatters_by_ft = {
-    python = { 'ruff_fix', 'ruff_format' },
-    javascript = { 'prettier' },
-    typescript = { 'prettier' },
-    javascriptreact = { 'prettier' },
-    typescriptreact = { 'prettier' },
-    json = { 'prettier' },
-    yaml = { 'prettier' },
-    markdown = { 'prettier' },
-    sh = { 'shfmt' },
-  },
-})
-vim.api.nvim_create_autocmd('BufWritePre', { pattern = '*', callback = function() require('conform').format({ async = false, lsp_fallback = true }) end })
+local function biome_or_prettier(bufnr)
+	if vim.fs.find({ 'biome.json', 'biome.jsonc' }, { upward = true, path = vim.api.nvim_buf_get_name(bufnr) })[1] then
+		return { 'biome' }
+	end
+	return { 'prettier' }
+end
 
--- 11) Linting via nvim-lint
+require('conform').setup({
+	formatters_by_ft = {
+		python = { 'ruff_fix', 'ruff_format' },
+		javascript = biome_or_prettier,
+		typescript = biome_or_prettier,
+		javascriptreact = biome_or_prettier,
+		typescriptreact = biome_or_prettier,
+		json = biome_or_prettier,
+		yaml = { 'prettier' },
+		markdown = { 'prettier' },
+		sh = { 'shfmt' },
+		sql = { 'sqruff' },
+		mysql = { 'sqruff' },
+		plsql = { 'sqruff' },
+	},
+	formatters = {
+		sqruff = {
+			prepend_args = { '--dialect', 'postgres' },
+		},
+	},
+})
+vim.api.nvim_create_autocmd('BufWritePre',
+	{
+		pattern = '*',
+		callback = function() require('conform').format({ async = false, lsp_fallback = true }) end
+	}
+)
+
+-- 11) Linting via nvim-lint (eslint_d for JS/TS — no ESLint LSP to avoid double diagnostics)
 local lint = require('lint')
 lint.linters_by_ft = {
-  python = { 'ruff' },
-  javascript = { 'eslint_d' },
-  typescript = { 'eslint_d' },
-  javascriptreact = { 'eslint_d' },
-  typescriptreact = { 'eslint_d' },
+	python = { 'ruff' },
+	javascript = { 'eslint_d' },
+	typescript = { 'eslint_d' },
+	javascriptreact = { 'eslint_d' },
+	typescriptreact = { 'eslint_d' },
+	sql = { 'sqruff' },
+	mysql = { 'sqruff' },
+	plsql = { 'sqruff' },
 }
 vim.api.nvim_create_autocmd({ 'BufEnter', 'BufWritePost', 'InsertLeave' }, {
-  callback = function() require('lint').try_lint() end,
+	callback = function() require('lint').try_lint() end,
 })
 
 -- 12) Git signs
@@ -300,24 +603,44 @@ local dapui = require('dapui')
 -- JS/TS: vscode-js via nvim-dap-vscode-js
 require('dap-vscode-js').setup({ node_path = 'node', adapters = { 'pwa-node', 'pwa-chrome' } })
 for _, language in ipairs({ 'typescript', 'javascript', 'typescriptreact', 'javascriptreact' }) do
-  dap.configurations[language] = {
-    {
-      type = 'pwa-node', request = 'launch', name = 'Launch file', program = '${file}', cwd = '${workspaceFolder}'
-    },
-    { type = 'pwa-node', request = 'attach', name = 'Attach', processId = require('dap.utils').pick_process, cwd = '${workspaceFolder}' },
-  }
+	dap.configurations[language] = {
+		{
+			type = 'pwa-node', request = 'launch', name = 'Launch file', program = '${file}', cwd = '${workspaceFolder}'
+		},
+		{ type = 'pwa-node', request = 'attach', name = 'Attach', processId = require('dap.utils').pick_process, cwd = '${workspaceFolder}' },
+	}
 end
 
--- Python
+-- Python DAP configuration  -- FIX: was completely missing
+dap.adapters.python = function(cb, config)
+	local debugpy_python = vim.fn.stdpath('data') .. '/mason/packages/debugpy/venv/bin/python'
+	cb({
+		type = 'executable',
+		command = debugpy_python,
+		args = { '-m', 'debugpy.adapter' },
+	})
+end
+dap.adapters.debugpy = dap.adapters.python
+dap.configurations.python = {
+	{
+		type = 'python',
+		request = 'launch',
+		name = 'Launch file',
+		program = '${file}',
+		cwd = '${workspaceFolder}',
+		console = 'integratedTerminal',
+	},
+}
+
 require('dapui').setup()
 dap.listeners.after.event_initialized['dapui_config'] = function() dapui.open() end
 dap.listeners.before.event_terminated['dapui_config'] = function() dapui.close() end
 
 -- 14) Neo-tree
-require('neo-tree').setup({ close_if_last_window = true, filesystem = { filtered_items = { hide_gitignored = false } } })
+require('neo-tree').setup({ close_if_last_window = true, filesystem = { filtered_items = { hide_gitignored = false, hide_dotfiles = false, hide_hidden = false } } })
 
--- 16) Small quality-of-life maps
-vim.keymap.set('n', '<leader>\n', function() vim.cmd('noh') end, { desc = 'No highlight' })
-vim.keymap.set('n', '<leader>qq', function() vim.cmd('qa') end, { desc = 'Quit all' })
+
+-- 15) Command abbreviation: type :cc instead of :CodeCompanion
+vim.cmd([[cab cc CodeCompanion]])
 
 -- End of file
