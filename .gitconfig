@@ -1,10 +1,11 @@
 [core]
-	editor = vim
+	editor = nvim
 	pager = diff-so-fancy | less --tabs=4 -RFX
 [alias]
 	ci = commit -S -v
 	cia = commit -S -v --amend
 	cl = clone
+    sw = switch
     br = branch --sort=-committerdate
 	co = checkout
 	df = diff
