@@ -501,8 +501,12 @@ vim.lsp.config('*', {
 })
 
 -- Python: Ruff for linting/formatting, Pyright for typing
-vim.lsp.config('ruff', {})
-vim.lsp.config('pyright', {})
+vim.lsp.config('ruff', {
+	root_markers = { 'pyproject.toml', 'ruff.toml', '.ruff.toml' },
+})
+vim.lsp.config('pyright', {
+	root_markers = { 'pyproject.toml', 'pyrightconfig.json', 'setup.py' },
+})
 
 -- TypeScript/JavaScript
 vim.lsp.config('ts_ls', {})

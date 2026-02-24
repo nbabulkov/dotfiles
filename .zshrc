@@ -125,7 +125,11 @@ fi
 #
 [ -s ~/.bash_aliases ] && source ~/.bash_aliases
 
+# Export local bins
 export PATH="$HOME/.local/bin:$PATH"
+
+# Set all configs to read from home dir .config
+export XDG_CONFIG_HOME="$HOME/.config"
 
 if [ -d /opt/homebrew ]; then
     export PATH="/opt/homebrew/bin:$PATH"
@@ -133,10 +137,10 @@ if [ -d /opt/homebrew ]; then
     [ -d /opt/homebrew/opt/postgresql@18/bin ] && export PATH="/opt/homebrew/opt/postgresql@18/bin:$PATH"
 fi
 
-# Deno
+# Deno completions
 [ -s ~/.deno/env ] && source ~/.deno/env
 
-# bun completions
+# Bun completions
 [ -s ~/.bun/_bun ] && source ~/.bun/_bun
 
 # bun
@@ -146,26 +150,19 @@ export PATH="$BUN_INSTALL/bin:$PATH"
 # Added by LM Studio CLI (lms)
 export PATH="$PATH:$HOME/.cache/lm-studio/bin"
 
-# The following lines have been added by Docker Desktop to enable Docker CLI completions.
-fpath=(~/.docker/completions $fpath)
-autoload -Uz compinit
-compinit
-
-# End of Docker CLI completions
-
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 
 # Added by LM Studio CLI (lms)
-export PATH="$PATH:/Users/nbabulkov/.cache/lm-studio/bin"
+export PATH="$PATH:$HOME/.cache/lm-studio/bin"
 # End of LM Studio CLI section
 
 
 # Added by Antigravity
-export PATH="/Users/nbabulkov/.antigravity/antigravity/bin:$PATH"
+export PATH="$HOME/.antigravity/antigravity/bin:$PATH"
 # The following lines have been added by Docker Desktop to enable Docker CLI completions.
-fpath=(/Users/nbabulkov/.docker/completions $fpath)
+fpath=($HOME/.docker/completions $fpath)
 autoload -Uz compinit
 compinit
 # End of Docker CLI completions

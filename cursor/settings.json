@@ -62,7 +62,7 @@
 	"files.trimTrailingWhitespace": true,
 	"editor.renderWhitespace": "all",
 	"editor.renderControlCharacters": true,
-	"extensions.ignoreRecommendations": false,
+	"extensions.ignoreRecommendations": true,
 	"diffEditor.ignoreTrimWhitespace": false,
 	"git.confirmSync": false,
 	"workbench.statusBar.visible": true,
@@ -75,9 +75,9 @@
 		"**/.settings": true,
 		"**/*.pyc": true
 	},
-	"diffEditor.renderSideBySide": true,
+	"diffEditor.renderSideBySide": false,
 	"gitlens.views.repositories.branches.layout": "list",
-	"python.languageServer": "Default",
+	"python.languageServer": "None",
 	"[python]": {
 		"editor.defaultFormatter": "charliermarsh.ruff",
 		"editor.formatOnType": true,
@@ -111,7 +111,9 @@
 		"*.dvc": "yaml",
 		"dvc.lock": "yaml",
 		"*.psql": "sql",
-		"*.pgsql": "sql"
+		"*.pgsql": "sql",
+		"*.env*": "properties",
+		"*.example": "properties"
 	},
 	"workbench.editorAssociations": {
 		"*.ipynb": "jupyter-notebook",
@@ -182,7 +184,6 @@
 		"editor.defaultFormatter": "esbenp.prettier-vscode"
 	},
 	"workbench.colorTheme": "Default Dark Modern",
-	"cloudcode.project": "eilla-dev",
 	"[javascript]": {
 		"editor.defaultFormatter": "dbaeumer.vscode-eslint"
 	},
@@ -210,7 +211,7 @@
 		"editor.defaultFormatter": "foxundermoon.shell-format"
 	},
 	"python.interpreter.infoVisibility": "always",
-	"githubPullRequests.fileListLayout": "flat",
+	"githubPullRequests.fileListLayout": "tree",
 	"terminal.external.osxExec": "Warp.app",
 	"python.terminal.activateEnvironment": false,
 	"gitlens.graph.minimap.enabled": false,
@@ -274,13 +275,23 @@
 	"application.shellEnvironmentResolutionTimeout": 20,
 	"gitlens.ai.model": "gitkraken",
 	"gitlens.ai.gitkraken.model": "gemini:gemini-2.0-flash",
-	"window.zoomLevel": -1,
 	"biome.lsp.trace.server": "messages",
 	"biome.requireConfiguration": true,
 	"update.releaseTrack": "prerelease",
 	"geminicodeassist.inlineSuggestions.enableAuto": false,
-	"geminicodeassist.project": "eilla-dev",
+	"geminicodeassist.project": "platform-dev-480319",
 	"diffEditor.codeLens": true,
 	"geminicodeassist.displayInlineContextHint": false,
-	"claudeCode.selectedModel": "haiku"
+	"claudeCode.selectedModel": "opus",
+	"go.toolsManagement.autoUpdate": true,
+	"typescript.updateImportsOnFileMove.enabled": "always",
+	"editor.matchBrackets": "near",
+	"vim.smartRelativeLine": true,
+	"claudeCode.preferredLocation": "sidebar",
+	"cursor.inlineDiff.mode": "unified",
+	"cursor.composer.usageSummaryDisplay": "always",
+	"geminicodeassist.enableTelemetry": false,
+	"cloudcode.project": "platform-dev-480319",
+	"terminal.integrated.mouseWheelZoom": true,
+	"window.zoomLevel": -1
 }
