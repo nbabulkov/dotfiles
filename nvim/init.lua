@@ -232,8 +232,8 @@ require('lazy').setup({
 								"REDACTED"
 							},
 							commands = {
-								default = { "/Users/nbabulkov/.local/bin/claude-agent-acp-wrapper" },
-								yolo = { "/Users/nbabulkov/.local/bin/claude-agent-acp-wrapper", "--yolo" },
+								default = { vim.fn.expand("~/.local/bin/claude-agent-acp-wrapper") },
+								yolo = { vim.fn.expand("~/.local/bin/claude-agent-acp-wrapper"), "--yolo" },
 							},
 						})
 					end,

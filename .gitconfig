@@ -16,7 +16,6 @@
     sha = stash apply
     shp = stash pop
 	f = fetch -v --all
-	mg = merge
     sm = submodule
 	rs = reset
 	rsh = reset --hard
@@ -68,7 +67,7 @@
 [user]
 	email = nbabulkov@gmail.com
 	name = Nikolay Babulkov
-	signingkey = /Users/nbabulkov/.ssh/id_ed25519.pub
+	signingkey = ~/.ssh/id_ed25519.pub
 [filter "lfs"]
 	clean = git-lfs clean -- %f
 	smudge = git-lfs smudge -- %f

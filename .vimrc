@@ -267,7 +267,7 @@ let g:ale_completion_autoimport = 1
 
 noremap <F6> :ALEFix<CR>
 noremap <F5> :ALELint<CR>
-noremap <F5> :ALEGoToDefinition<CR>
+noremap <F3> :ALEGoToDefinition<CR>
 noremap <F4> :ALEFindReferences<CR>
 
 "-----------------------------------------------------------
