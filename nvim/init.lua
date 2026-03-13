@@ -1,3 +1,4 @@
+---@diagnostic disable: undefined-global (only for: vim)
 -- Neovim IDE Baseline (Python + TypeScript)
 -- Single-file init.lua aimed at stability and sane defaults.
 -- Features: file viewer, LSP, treesitter, completion, formatters, linters, debugger, Telescope search,
@@ -7,6 +8,9 @@
 -- Recommended global tools: `pipx install ruff debugpy` | `npm i -g typescript typescript-language-server prettier`
 -- Set API keys via env vars: AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT
 -- Optional: LM Studio running on localhost:1234 for local models
+
+-- 0) Ensure bun binaries are in PATH
+vim.env.PATH = vim.fn.expand("~/.bun/bin") .. ":" .. vim.env.PATH
 
 -- 0) Basic options
 vim.g.mapleader = ' '
@@ -82,7 +86,7 @@ require('lazy').setup({
 			-- refer to the configuration section below
 			bigfile = { enabled = true },
 			dashboard = { enabled = true },
-			explorer = { enabled = true },
+			explorer = { enabled = false },
 			indent = { enabled = true },
 			input = { enabled = true },
 			picker = { enabled = true },
@@ -117,6 +121,28 @@ require('lazy').setup({
 			graph_style = "kitty",
 		},
 		dependencies = { 'nvim-lua/plenary.nvim', 'sindrets/diffview.nvim' }
+	},
+	{
+		'kdheepak/lazygit.nvim',
+		cmd = { 'LazyGit', 'LazyGitConfig', 'LazyGitCurrentFile', 'LazyGitFilter', 'LazyGitFilterCurrentFile' },
+		dependencies = { 'nvim-lua/plenary.nvim' },
+	},
+	{
+		"pwntester/octo.nvim",
+		cmd = "Octo",
+		opts = {
+			-- or "fzf-lua" or "snacks" or "default"
+			picker = "telescope",
+			-- bare Octo command opens picker of commands
+			enable_builtin = true,
+		},
+		dependencies = {
+			"nvim-lua/plenary.nvim",
+			"nvim-telescope/telescope.nvim",
+			-- OR "ibhagwan/fzf-lua",
+			-- OR "folke/snacks.nvim",
+			"nvim-tree/nvim-web-devicons",
+		},
 	},
 
 	-- Telescope (code search, files, symbols)
@@ -174,6 +200,15 @@ require('lazy').setup({
 	{
 		"olimorris/codecompanion.nvim",
 		opts = {
+			display = {
+				chat = {
+					window = {
+						layout = "vertical", -- Options: "vertical", "horizontal", "float"
+						position = "right", -- This moves it to the right side
+						width = 0.3, -- Percentage of the screen (0.3 = 30%)
+					},
+				},
+			},
 			adapters = {
 				-- LM Studio local models (OpenAI-compatible API on localhost:1234)
 				lmstudio = function()
@@ -194,7 +229,11 @@ require('lazy').setup({
 						return require("codecompanion.adapters").extend("claude_code", {
 							env = {
 								CLAUDE_CODE_OAUTH_TOKEN =
-								"5QVF4RzMKdyXa6zlXiU2HMXmNslKl69lRth0L1BmgDtVSfuH#_q0U8DutBsmqxHvGiUm4o-5LpF9BaBDq6vQfXP7G69A",
+								"REDACTED"
+							},
+							commands = {
+								default = { "/Users/nbabulkov/.local/bin/claude-agent-acp-wrapper" },
+								yolo = { "/Users/nbabulkov/.local/bin/claude-agent-acp-wrapper", "--yolo" },
 							},
 						})
 					end,
@@ -327,18 +366,52 @@ wk.add({
 		end,
 		desc = "DiffView toggle"
 	},
-	{ "<leader>gg",    function() require('neogit').open() end,                                         desc = "Neogit" },
-	{ "<leader>gh",    function() vim.cmd('DiffviewFileHistory %') end,                                 desc = "File history" },
-	{ "<leader>gH",    function() vim.cmd('DiffviewFileHistory') end,                                   desc = "Repo history" },
-	{ "<leader>gl",    function() require('neogit').open({ 'log' }) end,                                desc = "Log" },
-	{ "<leader>gp",    function() require('gitsigns').preview_hunk() end,                               desc = "Preview hunk" },
-	{ "<leader>gs",    function() require('gitsigns').stage_hunk() end,                                 desc = "Stage hunk" },
-	{ "<leader>gu",    function() require('gitsigns').undo_stage_hunk() end,                            desc = "Undo stage hunk" },
-	{ "<leader>gr",    function() require('gitsigns').reset_hunk() end,                                 desc = "Reset hunk" },
-	{ "<leader>gS",    function() require('gitsigns').stage_buffer() end,                               desc = "Stage buffer" },
-	{ "<leader>gR",    function() require('gitsigns').reset_buffer() end,                               desc = "Reset buffer" },
-	{ "]c",            function() require('gitsigns').nav_hunk('next') end,                             desc = "Next hunk" },
-	{ "[c",            function() require('gitsigns').nav_hunk('prev') end,                             desc = "Prev hunk" },
+	{ "<leader>gg", function() require('neogit').open() end,              desc = "Neogit" },
+	{ "<leader>gl", function() vim.cmd('LazyGit') end,                    desc = "LazyGit" },
+	{ "<leader>gL", function() require('neogit').open({ 'log' }) end,     desc = "Log" },
+	{ "<leader>gh", function() vim.cmd('DiffviewFileHistory %') end,      desc = "File history" },
+	{ "<leader>gH", function() vim.cmd('DiffviewFileHistory') end,        desc = "Repo history" },
+	{ "<leader>gp", function() require('gitsigns').preview_hunk() end,    desc = "Preview hunk" },
+	{ "<leader>gs", function() require('gitsigns').stage_hunk() end,      desc = "Stage hunk" },
+	{ "<leader>gu", function() require('gitsigns').undo_stage_hunk() end, desc = "Undo stage hunk" },
+	{ "<leader>gr", function() require('gitsigns').reset_hunk() end,      desc = "Reset hunk" },
+	{ "<leader>gS", function() require('gitsigns').stage_buffer() end,    desc = "Stage buffer" },
+	{ "<leader>gR", function() require('gitsigns').reset_buffer() end,    desc = "Reset buffer" },
+	{ "]c",         function() require('gitsigns').nav_hunk('next') end,  desc = "Next hunk" },
+	{ "[c",         function() require('gitsigns').nav_hunk('prev') end,  desc = "Prev hunk" },
+
+	-- Github
+	{ "<leader>G",  group = "GitHub" },
+	{
+		{
+			"<leader>Gi",
+			"<CMD>Octo issue list<CR>",
+			desc = "List GitHub Issues",
+		},
+		{
+			"<leader>Gp",
+			"<CMD>Octo pr list<CR>",
+			desc = "List GitHub PullRequests",
+		},
+		{
+			"<leader>Gd",
+			"<CMD>Octo discussion list<CR>",
+			desc = "List GitHub Discussions",
+		},
+		{
+			"<leader>Gn",
+			"<CMD>Octo notification list<CR>",
+			desc = "List GitHub Notifications",
+		},
+		{
+			"<leader>Gs",
+			function()
+				require("octo.utils").create_base_search_command { include_current_repo = true }
+			end,
+			desc = "Search GitHub",
+		},
+	},
+
 
 	-- LSP
 	{ "<leader>l",     group = "LSP" },
@@ -380,32 +453,34 @@ wk.add({
 	{ "<leader>sa",    "ggVG",                                                                          desc = "Select all" },
 	{ "<leader>P",     function() vim.cmd('Lazy') end,                                                  desc = "Plugin manager" },
 	{ "<leader>tn",    function() vim.o.relativenumber = not vim.o.relativenumber end,                  desc = "Toggle relative numbers" },
+
+	-- Tab cycling
+	{ "<A-Tab>",       function() vim.cmd('tabnext') end,                                               desc = "Next tab" },
+	{ "<A-S-Tab>",     function() vim.cmd('tabprevious') end,                                           desc = "Prev tab" },
+	{ "<leader>1",     "1gt",                                                                           desc = "Tab 1" },
+	{ "<leader>2",     "2gt",                                                                           desc = "Tab 2" },
+	{ "<leader>3",     "3gt",                                                                           desc = "Tab 3" },
+	{ "<leader>4",     "4gt",                                                                           desc = "Tab 4" },
+	{ "<leader>5",     "5gt",                                                                           desc = "Tab 5" },
+
+	-- Buffer cycling
+	{ "<Tab>",         function() vim.cmd('bnext') end,                                                 desc = "Next buffer",            mode = "n" },
+	{ "<S-Tab>",       function() vim.cmd('bprevious') end,                                             desc = "Prev buffer",            mode = "n" },
+
+	-- Window navigation (Ctrl+hjkl)
+	{ "<C-h>",         "<C-w>h",                                                                        desc = "Move to left window" },
+	{ "<C-j>",         "<C-w>j",                                                                        desc = "Move to below window" },
+	{ "<C-k>",         "<C-w>k",                                                                        desc = "Move to above window" },
+	{ "<C-l>",         "<C-w>l",                                                                        desc = "Move to right window" },
+
+	-- Resize windows (Ctrl+arrows)
+	{ "<C-Up>",        function() vim.cmd('resize +2') end,                                             desc = "Increase height" },
+	{ "<C-Down>",      function() vim.cmd('resize -2') end,                                             desc = "Decrease height" },
+	{ "<C-Left>",      function() vim.cmd('vertical resize -2') end,                                    desc = "Decrease width" },
+	{ "<C-Right>",     function() vim.cmd('vertical resize +2') end,                                    desc = "Increase width" },
 })
 
--- Tab cycling
-vim.keymap.set('n', '<A-Tab>', function() vim.cmd('tabnext') end, { desc = 'Next tab' })
-vim.keymap.set('n', '<A-S-Tab>', function() vim.cmd('tabprevious') end, { desc = 'Prev tab' })
-vim.keymap.set('n', '<leader>1', '1gt', { desc = 'Tab 1' })
-vim.keymap.set('n', '<leader>2', '2gt', { desc = 'Tab 2' })
-vim.keymap.set('n', '<leader>3', '3gt', { desc = 'Tab 3' })
-vim.keymap.set('n', '<leader>4', '4gt', { desc = 'Tab 4' })
-vim.keymap.set('n', '<leader>5', '5gt', { desc = 'Tab 5' })
-
--- Buffer cycling (non-leader, normal mode only — no conflict with cmp Tab in insert mode)
-vim.keymap.set('n', '<Tab>', function() vim.cmd('bnext') end, { desc = 'Next buffer' })
-vim.keymap.set('n', '<S-Tab>', function() vim.cmd('bprevious') end, { desc = 'Prev buffer' })
-
--- Window navigation with Ctrl+hjkl
-vim.keymap.set('n', '<C-h>', '<C-w>h', { desc = 'Move to left window' })
-vim.keymap.set('n', '<C-j>', '<C-w>j', { desc = 'Move to below window' })
-vim.keymap.set('n', '<C-k>', '<C-w>k', { desc = 'Move to above window' })
-vim.keymap.set('n', '<C-l>', '<C-w>l', { desc = 'Move to right window' })
-
--- Resize windows with Ctrl+arrows
-vim.keymap.set('n', '<C-Up>', function() vim.cmd('resize +2') end, { desc = 'Increase height' })
-vim.keymap.set('n', '<C-Down>', function() vim.cmd('resize -2') end, { desc = 'Decrease height' })
-vim.keymap.set('n', '<C-Left>', function() vim.cmd('vertical resize -2') end, { desc = 'Decrease width' })
-vim.keymap.set('n', '<C-Right>', function() vim.cmd('vertical resize +2') end, { desc = 'Increase width' })
+-- (Tab cycling, buffer cycling, window nav, and resize keymaps are now inside wk.add above)
 
 -- 5) Telescope setup
 local telescope = require('telescope')
@@ -502,10 +577,22 @@ vim.lsp.config('*', {
 
 -- Python: Ruff for linting/formatting, Pyright for typing
 vim.lsp.config('ruff', {
-	root_markers = { 'pyproject.toml', 'ruff.toml', '.ruff.toml' },
+	root_dir = function(bufnr, on_dir)
+		local fname = vim.api.nvim_buf_get_name(bufnr)
+		local root = vim.fs.root(fname, { 'pyproject.toml', 'ruff.toml', '.ruff.toml' })
+		if root then
+			on_dir(root)
+		end
+	end,
 })
 vim.lsp.config('pyright', {
-	root_markers = { 'pyproject.toml', 'pyrightconfig.json', 'setup.py' },
+	root_dir = function(bufnr, on_dir)
+		local fname = vim.api.nvim_buf_get_name(bufnr)
+		local root = vim.fs.root(fname, { 'pyproject.toml', 'pyrightconfig.json' })
+		if root then
+			on_dir(root)
+		end
+	end,
 })
 
 -- TypeScript/JavaScript
@@ -615,14 +702,24 @@ for _, language in ipairs({ 'typescript', 'javascript', 'typescriptreact', 'java
 	}
 end
 
--- Python DAP configuration  -- FIX: was completely missing
+-- Python DAP configuration
 dap.adapters.python = function(cb, config)
-	local debugpy_python = vim.fn.stdpath('data') .. '/mason/packages/debugpy/venv/bin/python'
-	cb({
-		type = 'executable',
-		command = debugpy_python,
-		args = { '-m', 'debugpy.adapter' },
-	})
+	if config.request == 'attach' and config.connect then
+		-- Attach mode: connect directly to the debugpy server (no adapter middleware)
+		cb({
+			type = 'server',
+			host = config.connect.host or '127.0.0.1',
+			port = config.connect.port,
+		})
+	else
+		-- Launch mode: start debugpy adapter via stdio
+		local debugpy_python = vim.fn.stdpath('data') .. '/mason/packages/debugpy/venv/bin/python'
+		cb({
+			type = 'executable',
+			command = debugpy_python,
+			args = { '-m', 'debugpy.adapter' },
+		})
+	end
 end
 dap.adapters.debugpy = dap.adapters.python
 dap.configurations.python = {

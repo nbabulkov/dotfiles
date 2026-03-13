@@ -96,7 +96,6 @@ plugins=(
   colored-man-pages
   web-search
   zsh-interactive-cd
-  z
 )
 
 source $ZSH/oh-my-zsh.sh
@@ -158,6 +157,8 @@ export NVM_DIR="$HOME/.nvm"
 export PATH="$PATH:$HOME/.cache/lm-studio/bin"
 # End of LM Studio CLI section
 
+# Zoxide 
+eval "$(zoxide init zsh)"
 
 # Added by Antigravity
 export PATH="$HOME/.antigravity/antigravity/bin:$PATH"

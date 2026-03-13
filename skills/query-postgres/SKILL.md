@@ -13,12 +13,14 @@ Use `psql` to interactively query PostgreSQL databases. When you need to check d
 ## When to Use
 
 **Use this when:**
+
 - Inspecting local database state during development
 - Debugging data issues (checking counts, finding records, verifying state)
 - Running ad-hoc queries to understand data
 - Verifying migrations or seeding worked correctly
 
 **Don't use when:**
+
 - Running queries in production (use appropriate secured access)
 - Credentials aren't available locally
 - Building automated tools (use Prisma or your ORM instead)
@@ -28,15 +30,15 @@ Use `psql` to interactively query PostgreSQL databases. When you need to check d
 **Direct psql command with inline SQL:**
 
 ```bash
-psql "postgresql://postgres:password@localhost:5444/platform" -c "SELECT COUNT(*) FROM \"platform.user\";"
+psql "postgresql://postgres:password@localhost:5444/platform" -c "SELECT COUNT(*) FROM \"User\";"
 ```
 
 **For multiple queries, use multiple -c flags:**
 
 ```bash
 psql "postgresql://postgres:password@localhost:5444/platform" \
-  -c "SELECT COUNT(*) FROM \"platform.user\";" \
-  -c "SELECT email FROM \"platform.user\" LIMIT 5;"
+  -c "SELECT COUNT(*) FROM \"User\";" \
+  -c "SELECT email FROM \"User\" LIMIT 5;"
 ```
 
 **For complex queries, use heredoc:**
@@ -71,12 +73,16 @@ EOF
 
 **Connection string location:** Always in `.env.example` at project root as `DATABASE_URL`
 
-**Database schema reference:** Full Prisma schema available at `packages/database/prisma/schema.prisma`
-
 **Common format:** `postgresql://postgres:password@localhost:5444/platform`
 
-**Schema names:** This project uses two schemas: `platform` (main tables) and `jobs` (job processing system). Check `packages/database/prisma/schema.prisma` for full model definitions.
+**Schema names:** Most projects use `public` schema by default, but check Prisma schema for custom schemas
 
+**Quoted identifiers:** Use double quotes for case-sensitive or reserved word table names:
+
+```sql
+SELECT * FROM "User";  -- capital U requires quotes
+SELECT * FROM users;   -- lowercase works without
+```
 
 ## Common Mistakes
 
@@ -91,6 +97,7 @@ EOF
 ## Red Flags - Consider psql Instead
 
 These thoughts mean you might be over-engineering:
+
 - "I'll create a script for this"
 - "Let me use Prisma to query..."
 - "I'll write a SQL file and pipe it"
@@ -103,13 +110,3 @@ These thoughts mean you might be over-engineering:
 **Local development:** Using credentials from `.env.example` is appropriate - these are local development credentials
 
 **Production/Staging:** Never use this approach - use proper authenticated access through your deployment platform's secure interfaces
-
-## Related Skills
-
-**For database diagnostics and monitoring:** Use `/postgres-diagnostics` for essential queries to check:
-- Active queries and sessions
-- Connection usage and limits
-- Locks and blocking queries
-- Table and index statistics
-- Cache hit rates and performance metrics
-- System configuration and health
