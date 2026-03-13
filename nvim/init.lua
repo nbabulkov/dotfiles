@@ -47,7 +47,7 @@ vim.opt.rtp:prepend(lazypath)
 -- 2) Plugins
 require('lazy').setup({
 	-- Themes
-	{ 'folke/tokyonight.nvim',       lazy = false,                                    priority = 1000 },
+	{ 'folke/tokyonight.nvim',     lazy = false,     priority = 1000 },
 	{
 		"tiagovla/tokyodark.nvim",
 		opts = {
@@ -58,21 +58,31 @@ require('lazy').setup({
 			vim.cmd [[colorscheme tokyodark]]
 		end,
 	},
-	{ "bluz71/vim-moonfly-colors",   name = "moonfly",                                lazy = false,   priority = 1000 },
+	{ "bluz71/vim-moonfly-colors", name = "moonfly", lazy = false,   priority = 1000 },
 
 	-- UI / UX
-	{ 'nvim-lualine/lualine.nvim',   dependencies = { 'nvim-tree/nvim-web-devicons' } },
+	{
+		'nvim-lualine/lualine.nvim',
+		dependencies = { 'nvim-tree/nvim-web-devicons' },
+		opts = {
+			options = { theme = 'auto' },
+			sections = {
+				lualine_b = { 'branch', 'diff', 'diagnostics' },
+				lualine_c = {
+					{ 'filename', path = 3, shorting_target = 0 },
+				},
+			},
+		},
+	},
 	{ "nvim-tree/nvim-web-devicons", opts = {} }, { 'folke/which-key.nvim', opts = {} },
 	{
 		"levouh/tint.nvim",
-		config = function()
-			require("tint").setup({
-				tint = -30, -- how much to darken (more negative = darker)
-				saturation = 0.5, -- reduce color saturation in unfocused windows
-				highlight_ignore_patterns = {},
-				tint_background_colors = true,
-			})
-		end,
+		opts = {
+			tint = -30, -- how much to darken (more negative = darker)
+			saturation = 0.5, -- reduce color saturation in unfocused windows
+			highlight_ignore_patterns = {},
+			tint_background_colors = true,
+		},
 	},
 
 	{
@@ -100,21 +110,36 @@ require('lazy').setup({
 	},
 
 	-- mini.nvim modules (only load what we use)
-	{ 'echasnovski/mini.pairs',    version = '*', opts = {} },
-	{ 'echasnovski/mini.surround', version = '*', opts = {} },
+	{ 'echasnovski/mini.pairs',      version = '*', opts = {} },
+	{ 'echasnovski/mini.surround',   version = '*', opts = {} },
 
 	-- Lua LSP support for Neovim config editing
-	{ 'folke/lazydev.nvim',        ft = 'lua',    opts = {} },
+	{ 'folke/lazydev.nvim',          ft = 'lua',    opts = {} },
 
 	-- File explorer
 	{
 		'nvim-neo-tree/neo-tree.nvim',
 		branch = 'v3.x',
-		dependencies = { 'nvim-lua/plenary.nvim', 'nvim-tree/nvim-web-devicons', 'MunifTanjim/nui.nvim' }
+		dependencies = { 'nvim-lua/plenary.nvim', 'nvim-tree/nvim-web-devicons', 'MunifTanjim/nui.nvim' },
+		opts = {
+			close_if_last_window = true,
+			filesystem = {
+				filtered_items = {
+					hide_gitignored = false,
+					hide_dotfiles = false,
+					hide_hidden = false,
+				},
+			},
+			window = {
+				mappings = {
+					["<space>"] = "none",
+				},
+			},
+		},
 	},
 
 	-- Git
-	{ 'lewis6991/gitsigns.nvim',                     opts = {} },
+	{ 'lewis6991/gitsigns.nvim', opts = {} },
 	{
 		'NeogitOrg/neogit',
 		opts = {
@@ -146,18 +171,71 @@ require('lazy').setup({
 	},
 
 	-- Telescope (code search, files, symbols)
-	{ 'nvim-telescope/telescope.nvim',               tag = '0.1.5',         dependencies = { 'nvim-lua/plenary.nvim' } },
-	{ 'nvim-telescope/telescope-fzf-native.nvim',    build = 'make' },
-	{ 'nvim-telescope/telescope-live-grep-args.nvim' },
+	{
+		'nvim-telescope/telescope.nvim',
+		tag = '0.1.5',
+		dependencies = {
+			'nvim-lua/plenary.nvim',
+			{ 'nvim-telescope/telescope-fzf-native.nvim', build = 'make' },
+			'nvim-telescope/telescope-live-grep-args.nvim',
+		},
+		config = function()
+			local telescope = require('telescope')
+			local actions = require('telescope.actions')
+			telescope.setup({
+				defaults = {
+					mappings = {
+						i = {
+							['<C-u>'] = false,
+							['<C-d>'] = false,
+							['<C-j>'] = actions.move_selection_next,
+							['<C-k>'] = actions.move_selection_previous,
+							['<PageDown>'] = actions.results_scrolling_down,
+							['<PageUp>'] = actions.results_scrolling_up,
+						},
+					},
+				},
+			})
+			telescope.load_extension('fzf')
+			telescope.load_extension('live_grep_args')
+		end,
+	},
 
 	-- Treesitter
-	{ 'nvim-treesitter/nvim-treesitter',             build = ':TSUpdate' },
+	{
+		'nvim-treesitter/nvim-treesitter',
+		build = ':TSUpdate',
+		opts = {
+			ensure_installed = { 'lua', 'vim', 'vimdoc', 'query', 'python', 'javascript', 'typescript', 'tsx', 'json', 'yaml', 'bash', 'markdown', 'sql' },
+			highlight = { enable = true },
+			indent = { enable = true },
+		},
+		config = function(_, opts)
+			require('nvim-treesitter.configs').setup(opts)
+		end,
+	},
 
 	-- LSP + tooling
 	{ 'neovim/nvim-lspconfig' },
-	{ 'williamboman/mason.nvim',                     build = ':MasonUpdate' },
-	{ 'williamboman/mason-lspconfig.nvim' },
-	{ 'WhoIsSethDaniel/mason-tool-installer.nvim' },
+	{ 'williamboman/mason.nvim', build = ':MasonUpdate', opts = {} },
+	{
+		'williamboman/mason-lspconfig.nvim',
+		opts = {
+			ensure_installed = { 'pyright', 'ruff', 'ts_ls', 'lua_ls', 'bashls', 'jsonls', 'yamlls' },
+		},
+	},
+	{
+		'WhoIsSethDaniel/mason-tool-installer.nvim',
+		opts = {
+			ensure_installed = {
+				-- linters/formatters
+				'ruff', 'prettier', 'biome', 'eslint_d', 'sqruff',
+				-- debug adapters
+				'debugpy', 'js-debug-adapter',
+			},
+			run_on_start = true,
+		},
+	},
 
 	-- Completion
 	{ 'hrsh7th/nvim-cmp' },
@@ -178,12 +256,29 @@ require('lazy').setup({
 
 	-- Debugger
 	{ 'mfussenegger/nvim-dap' },
-	{ 'rcarriga/nvim-dap-ui',        dependencies = { 'nvim-neotest/nvim-nio' } },
-	{ 'jay-babu/mason-nvim-dap.nvim' },
-	{ 'mxsdev/nvim-dap-vscode-js' },
+	{
+		'rcarriga/nvim-dap-ui',
+		dependencies = { 'nvim-neotest/nvim-nio' },
+		opts = {},
+		config = function(_, opts)
+			local dapui = require('dapui')
+			dapui.setup(opts)
+			local dap = require('dap')
+			dap.listeners.after.event_initialized['dapui_config'] = function() dapui.open() end
+			dap.listeners.before.event_terminated['dapui_config'] = function() dapui.close() end
+		end,
+	},
+	{
+		'jay-babu/mason-nvim-dap.nvim',
+		opts = { ensure_installed = { 'python', 'js' } },
+	},
+	{
+		'mxsdev/nvim-dap-vscode-js',
+		opts = { node_path = 'node', adapters = { 'pwa-node', 'pwa-chrome' } },
+	},
 
 	-- Database (SQL)
-	{ 'tpope/vim-dadbod',            lazy = true },
+	{ 'tpope/vim-dadbod',                     lazy = true },
 	{
 		'kristijanhusak/vim-dadbod-ui',
 		dependencies = { 'tpope/vim-dadbod' },
@@ -278,22 +373,13 @@ require('lazy').setup({
 	checker = { enabled = false },
 })
 
--- 3) Colorscheme & statusline
+-- 3) Colorscheme
 vim.cmd.colorscheme('moonfly')
 vim.api.nvim_create_autocmd("ColorScheme", {
 	callback = function()
 		vim.api.nvim_set_hl(0, "NormalNC", { bg = "#121212", fg = "#555555" })
 	end,
 })
-require('lualine').setup({
-	options = { theme = 'auto' },
-	sections = {
-		lualine_c = {
-			{ 'filename', path = 3, shorting_target = 0 }, -- 3=absolute with ~ for home, shorting_target=0 disables truncation
-		},
-	},
-})
-
 -- 4) Keymaps (all leader + global keymaps in one place via which-key)
 local wk = require('which-key')
 wk.add({
@@ -415,115 +501,80 @@ wk.add({
 
 	-- LSP
 	{ "<leader>l",     group = "LSP" },
-	{ "<leader>lf",    function() require('conform').format({ async = true, lsp_fallback = true }) end, desc = "Format" },
-	{ "<leader>la",    function() vim.lsp.buf.code_action() end,                                        desc = "Code Action" },
-	{ "<leader>lr",    function() vim.lsp.buf.rename() end,                                             desc = "Rename" },
-	{ "<leader>lt",    function() vim.lsp.buf.type_definition() end,                                    desc = "Type definition" },
-	{ "<leader>ls",    function() require('telescope.builtin').lsp_document_symbols() end,              desc = "Document symbols" },
-	{ "<leader>lk",    function() vim.lsp.buf.signature_help() end,                                     desc = "Signature help" },
+	{ "<leader>lf",    function() require('conform').format({ async = true, lsp_fallback = true }) end,         desc = "Format" },
+	{ "<leader>la",    function() vim.lsp.buf.code_action() end,                                                desc = "Code Action" },
+	{ "<leader>lr",    function() vim.lsp.buf.rename() end,                                                     desc = "Rename" },
+	{ "<leader>lt",    function() vim.lsp.buf.type_definition() end,                                            desc = "Type definition" },
+	{ "<leader>ls",    function() require('telescope.builtin').lsp_document_symbols() end,                      desc = "Document symbols" },
+	{ "<leader>lk",    function() vim.lsp.buf.signature_help() end,                                             desc = "Signature help" },
 
 	-- Diagnostics
-	{ "<leader>o",     vim.diagnostic.open_float,                                                       desc = "Diagnostics float" },
-	{ "]d",            function() vim.diagnostic.goto_next() end,                                       desc = "Next diagnostic" },
-	{ "[d",            function() vim.diagnostic.goto_prev() end,                                       desc = "Prev diagnostic" },
+	{ "<leader>o",     vim.diagnostic.open_float,                                                               desc = "Diagnostics float" },
+	{ "]d",            function() vim.diagnostic.goto_next() end,                                               desc = "Next diagnostic" },
+	{ "[d",            function() vim.diagnostic.goto_prev() end,                                               desc = "Prev diagnostic" },
 
 	-- Database
 	{ "<leader>D",     group = "Database" },
-	{ "<leader>Du",    function() vim.cmd('DBUIToggle') end,                                            desc = "Toggle DBUI" },
-	{ "<leader>Da",    function() vim.cmd('DBUIAddConnection') end,                                     desc = "Add connection" },
-	{ "<leader>Df",    function() vim.cmd('DBUIFindBuffer') end,                                        desc = "Find buffer" },
-	{ "<leader>De",    "<Plug>(DBUI_ExecuteQuery)",                                                     mode = { "n", "v" },             desc = "Execute query" },
-	{ "<leader>Ds",    "<Plug>(DBUI_SaveQuery)",                                                        desc = "Save query" },
+	{ "<leader>Du",    function() vim.cmd('DBUIToggle') end,                                                    desc = "Toggle DBUI" },
+	{ "<leader>Da",    function() vim.cmd('DBUIAddConnection') end,                                             desc = "Add connection" },
+	{ "<leader>Df",    function() vim.cmd('DBUIFindBuffer') end,                                                desc = "Find buffer" },
+	{ "<leader>De",    "<Plug>(DBUI_ExecuteQuery)",                                                             mode = { "n", "v" },             desc = "Execute query" },
+	{ "<leader>Ds",    "<Plug>(DBUI_SaveQuery)",                                                                desc = "Save query" },
 
 	-- Windows
 	{ "<leader>w",     group = "Window" },
-	{ "<leader>wh",    "<C-w>h",                                                                        desc = "Move left" },
-	{ "<leader>wj",    "<C-w>j",                                                                        desc = "Move down" },
-	{ "<leader>wk",    "<C-w>k",                                                                        desc = "Move up" },
-	{ "<leader>wl",    "<C-w>l",                                                                        desc = "Move right" },
-	{ "<leader>wv",    function() vim.cmd('vsplit') end,                                                desc = "Vertical split" },
-	{ "<leader>ws",    function() vim.cmd('split') end,                                                 desc = "Horizontal split" },
-	{ "<leader>wq",    function() vim.cmd('close') end,                                                 desc = "Close window" },
-	{ "<leader>wo",    function() vim.cmd('only') end,                                                  desc = "Close other windows" },
-	{ "<leader>w=",    function() vim.cmd('wincmd =') end,                                              desc = "Equal width" },
+	{ "<leader>wh",    "<C-w>h",                                                                                desc = "Move left" },
+	{ "<leader>wj",    "<C-w>j",                                                                                desc = "Move down" },
+	{ "<leader>wk",    "<C-w>k",                                                                                desc = "Move up" },
+	{ "<leader>wl",    "<C-w>l",                                                                                desc = "Move right" },
+	{ "<leader>wv",    function() vim.cmd('vsplit') end,                                                        desc = "Vertical split" },
+	{ "<leader>ws",    function() vim.cmd('split') end,                                                         desc = "Horizontal split" },
+	{ "<leader>wq",    function() vim.cmd('close') end,                                                         desc = "Close window" },
+	{ "<leader>wo",    function() vim.cmd('only') end,                                                          desc = "Close other windows" },
+	{ "<leader>w=",    function() vim.cmd('wincmd =') end,                                                      desc = "Equal width" },
+
+	-- Copy
+	{ "<leader>c",     group = "Copy" },
+	{ "<leader>cp",    function() vim.fn.setreg('+', vim.fn.expand('%:p')) end,                                 desc = "Absolute path" },
+	{ "<leader>cr",    function() vim.fn.setreg('+', vim.fn.expand('%:.')) end,                                 desc = "Relative path" },
+	{ "<leader>cf",    function() vim.fn.setreg('+', vim.fn.expand('%:t')) end,                                 desc = "Filename" },
+	{ "<leader>cd",    function() vim.fn.setreg('+', vim.fn.getcwd()) end,                                      desc = "Working directory" },
+	{ "<leader>cb",    function() vim.fn.setreg('+', vim.trim(vim.fn.system('git branch --show-current'))) end, desc = "Git branch" },
 
 	-- Misc
-	{ "<leader>qq",    function() vim.cmd('qa') end,                                                    desc = "Quit all" },
-	{ "<leader><Esc>", function() vim.cmd('noh') end,                                                   desc = "No highlight" },
-	{ "<leader>sa",    "ggVG",                                                                          desc = "Select all" },
-	{ "<leader>P",     function() vim.cmd('Lazy') end,                                                  desc = "Plugin manager" },
-	{ "<leader>tn",    function() vim.o.relativenumber = not vim.o.relativenumber end,                  desc = "Toggle relative numbers" },
+	{ "<leader>qq",    function() vim.cmd('qa') end,                                                            desc = "Quit all" },
+	{ "<leader><Esc>", function() vim.cmd('noh') end,                                                           desc = "No highlight" },
+	{ "<leader>sa",    "ggVG",                                                                                  desc = "Select all" },
+	{ "<leader>P",     function() vim.cmd('Lazy') end,                                                          desc = "Plugin manager" },
+	{ "<leader>tn",    function() vim.o.relativenumber = not vim.o.relativenumber end,                          desc = "Toggle relative numbers" },
 
 	-- Tab cycling
-	{ "<A-Tab>",       function() vim.cmd('tabnext') end,                                               desc = "Next tab" },
-	{ "<A-S-Tab>",     function() vim.cmd('tabprevious') end,                                           desc = "Prev tab" },
-	{ "<leader>1",     "1gt",                                                                           desc = "Tab 1" },
-	{ "<leader>2",     "2gt",                                                                           desc = "Tab 2" },
-	{ "<leader>3",     "3gt",                                                                           desc = "Tab 3" },
-	{ "<leader>4",     "4gt",                                                                           desc = "Tab 4" },
-	{ "<leader>5",     "5gt",                                                                           desc = "Tab 5" },
+	{ "<A-Tab>",       function() vim.cmd('tabnext') end,                                                       desc = "Next tab" },
+	{ "<A-S-Tab>",     function() vim.cmd('tabprevious') end,                                                   desc = "Prev tab" },
+	{ "<leader>1",     "1gt",                                                                                   desc = "Tab 1" },
+	{ "<leader>2",     "2gt",                                                                                   desc = "Tab 2" },
+	{ "<leader>3",     "3gt",                                                                                   desc = "Tab 3" },
+	{ "<leader>4",     "4gt",                                                                                   desc = "Tab 4" },
+	{ "<leader>5",     "5gt",                                                                                   desc = "Tab 5" },
 
 	-- Buffer cycling
-	{ "<Tab>",         function() vim.cmd('bnext') end,                                                 desc = "Next buffer",            mode = "n" },
-	{ "<S-Tab>",       function() vim.cmd('bprevious') end,                                             desc = "Prev buffer",            mode = "n" },
+	{ "<Tab>",         function() vim.cmd('bnext') end,                                                         desc = "Next buffer",            mode = "n" },
+	{ "<S-Tab>",       function() vim.cmd('bprevious') end,                                                     desc = "Prev buffer",            mode = "n" },
 
 	-- Window navigation (Ctrl+hjkl)
-	{ "<C-h>",         "<C-w>h",                                                                        desc = "Move to left window" },
-	{ "<C-j>",         "<C-w>j",                                                                        desc = "Move to below window" },
-	{ "<C-k>",         "<C-w>k",                                                                        desc = "Move to above window" },
-	{ "<C-l>",         "<C-w>l",                                                                        desc = "Move to right window" },
+	{ "<C-h>",         "<C-w>h",                                                                                desc = "Move to left window" },
+	{ "<C-j>",         "<C-w>j",                                                                                desc = "Move to below window" },
+	{ "<C-k>",         "<C-w>k",                                                                                desc = "Move to above window" },
+	{ "<C-l>",         "<C-w>l",                                                                                desc = "Move to right window" },
 
 	-- Resize windows (Ctrl+arrows)
-	{ "<C-Up>",        function() vim.cmd('resize +2') end,                                             desc = "Increase height" },
-	{ "<C-Down>",      function() vim.cmd('resize -2') end,                                             desc = "Decrease height" },
-	{ "<C-Left>",      function() vim.cmd('vertical resize -2') end,                                    desc = "Decrease width" },
-	{ "<C-Right>",     function() vim.cmd('vertical resize +2') end,                                    desc = "Increase width" },
+	{ "<C-Up>",        function() vim.cmd('resize +2') end,                                                     desc = "Increase height" },
+	{ "<C-Down>",      function() vim.cmd('resize -2') end,                                                     desc = "Decrease height" },
+	{ "<C-Left>",      function() vim.cmd('vertical resize -2') end,                                            desc = "Decrease width" },
+	{ "<C-Right>",     function() vim.cmd('vertical resize +2') end,                                            desc = "Increase width" },
 })
 
--- (Tab cycling, buffer cycling, window nav, and resize keymaps are now inside wk.add above)
-
--- 5) Telescope setup
-local telescope = require('telescope')
-local actions = require('telescope.actions')
-telescope.setup({
-	defaults = {
-		mappings = {
-			i = {
-				['<C-u>'] = false,
-				['<C-d>'] = false,
-				['<C-j>'] = actions.move_selection_next,
-				['<C-k>'] = actions.move_selection_previous,
-				['<PageDown>'] = actions.results_scrolling_down,
-				['<PageUp>'] = actions.results_scrolling_up,
-			},
-		},
-	},
-})
-telescope.load_extension('fzf')
-telescope.load_extension('live_grep_args')
-
--- 6) Treesitter
-require('nvim-treesitter.configs').setup({
-	ensure_installed = { 'lua', 'vim', 'vimdoc', 'query', 'python', 'javascript', 'typescript', 'tsx', 'json', 'yaml', 'bash', 'markdown', 'sql' },
-	highlight = { enable = true },
-	indent = { enable = true },
-})
-
--- 7) Mason: LSP, DAP, and external tools
--- NOTE: ESLint runs via nvim-lint (eslint_d) only — removed from mason-lspconfig to avoid double diagnostics
-require('mason').setup()
-require('mason-lspconfig').setup({ ensure_installed = { 'pyright', 'ruff', 'ts_ls', 'lua_ls', 'bashls', 'jsonls', 'yamlls' } }) -- FIX: removed 'eslint' to avoid duplicate diagnostics; added lua_ls for lazydev
-require('mason-tool-installer').setup({
-	ensure_installed = {
-		-- linters/formatters
-		'ruff', 'prettier', 'biome', 'eslint_d', 'sqruff',
-		-- debug adapters
-		'debugpy', 'js-debug-adapter',
-	},
-	run_on_start = true,
-})
-
--- 8) Completion (cmp)
+-- 5) Completion (cmp)
 local cmp = require('cmp')
 local luasnip = require('luasnip')
 local lspkind = require('lspkind')
@@ -567,7 +618,7 @@ vim.api.nvim_create_autocmd('FileType', {
 	end,
 })
 
--- 9) LSP servers (Neovim 0.11+ native vim.lsp.config API)
+-- 6) LSP servers (Neovim 0.11+ native vim.lsp.config API)
 local capabilities = require('cmp_nvim_lsp').default_capabilities()
 
 -- Global defaults for all servers
@@ -631,7 +682,7 @@ vim.api.nvim_create_autocmd('LspAttach', {
 	end,
 })
 
--- 10) Format on save via conform
+-- 7) Format on save via conform
 local function biome_or_prettier(bufnr)
 	if vim.fs.find({ 'biome.json', 'biome.jsonc' }, { upward = true, path = vim.api.nvim_buf_get_name(bufnr) })[1] then
 		return { 'biome' }
@@ -667,7 +718,7 @@ vim.api.nvim_create_autocmd('BufWritePre',
 	}
 )
 
--- 11) Linting via nvim-lint (eslint_d for JS/TS — no ESLint LSP to avoid double diagnostics)
+-- 8) Linting via nvim-lint (eslint_d for JS/TS — no ESLint LSP to avoid double diagnostics)
 local lint = require('lint')
 lint.linters_by_ft = {
 	python = { 'ruff' },
@@ -683,16 +734,10 @@ vim.api.nvim_create_autocmd({ 'BufEnter', 'BufWritePost', 'InsertLeave' }, {
 	callback = function() require('lint').try_lint() end,
 })
 
--- 12) Git signs
-require('gitsigns').setup()
-
--- 13) Debugging (DAP)
-require('mason-nvim-dap').setup({ ensure_installed = { 'python', 'js' } })
+-- 9) DAP configurations
 local dap = require('dap')
-local dapui = require('dapui')
 
--- JS/TS: vscode-js via nvim-dap-vscode-js
-require('dap-vscode-js').setup({ node_path = 'node', adapters = { 'pwa-node', 'pwa-chrome' } })
+-- JS/TS DAP configurations
 for _, language in ipairs({ 'typescript', 'javascript', 'typescriptreact', 'javascriptreact' }) do
 	dap.configurations[language] = {
 		{
@@ -733,15 +778,7 @@ dap.configurations.python = {
 	},
 }
 
-require('dapui').setup()
-dap.listeners.after.event_initialized['dapui_config'] = function() dapui.open() end
-dap.listeners.before.event_terminated['dapui_config'] = function() dapui.close() end
-
--- 14) Neo-tree
-require('neo-tree').setup({ close_if_last_window = true, filesystem = { filtered_items = { hide_gitignored = false, hide_dotfiles = false, hide_hidden = false } } })
-
-
--- 15) Command abbreviation: type :cc instead of :CodeCompanion
+-- 10) Command abbreviation: type :cc instead of :CodeCompanion
 vim.cmd([[cab cc CodeCompanion]])
 
 -- End of file
