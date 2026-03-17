@@ -17,7 +17,7 @@ vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 vim.opt.termguicolors = true
 vim.opt.number = true
-vim.opt.relativenumber = true
+vim.opt.relativenumber = false
 vim.opt.signcolumn = 'yes'
 vim.opt.updatetime = 300
 vim.opt.timeoutlen = 400
@@ -72,6 +72,22 @@ require('lazy').setup({
 					{ 'filename', path = 3, shorting_target = 0 },
 				},
 			},
+			tabline = {
+				lualine_a = {
+					{
+						'tabs',
+						mode = 2, -- show tab number + name
+						max_length = vim.o.columns,
+						fmt = function(name, context)
+							local ok, tab_name = pcall(vim.api.nvim_tabpage_get_var, context.tabId, 'tab_name')
+							if ok and tab_name and tab_name ~= '' then
+								return tab_name
+							end
+							return name
+						end,
+					},
+				},
+			},
 		},
 	},
 	{ "nvim-tree/nvim-web-devicons", opts = {} }, { 'folke/which-key.nvim', opts = {} },
@@ -82,6 +98,46 @@ require('lazy').setup({
 			saturation = 0.5, -- reduce color saturation in unfocused windows
 			highlight_ignore_patterns = {},
 			tint_background_colors = true,
+		},
+	},
+	{
+		'lewis6991/satellite.nvim',
+		opts = {
+			current_only = false,
+			winblend = 50,
+			zindex = 40,
+			excluded_filetypes = {},
+			width = 2,
+			handlers = {
+				cursor = {
+					enable = true,
+					symbols = { '⎺', '⎻', '⎼', '⎽' },
+				},
+				search = {
+					enable = true,
+				},
+				diagnostic = {
+					enable = true,
+					signs = { '-', '=', '≡' },
+					min_severity = vim.diagnostic.severity.HINT,
+				},
+				gitsigns = {
+					enable = true,
+					signs = {
+						add = '│',
+						change = '│',
+						delete = '-',
+					},
+				},
+				marks = {
+					enable = true,
+					show_builtins = false,
+					key = 'm',
+				},
+				quickfix = {
+					signs = { '-', '=', '≡' },
+				},
+			},
 		},
 	},
 
@@ -112,6 +168,14 @@ require('lazy').setup({
 	-- mini.nvim modules (only load what we use)
 	{ 'echasnovski/mini.pairs',      version = '*', opts = {} },
 	{ 'echasnovski/mini.surround',   version = '*', opts = {} },
+
+	-- Markdown rendering
+	{
+		'MeanderingProgrammer/render-markdown.nvim',
+		ft = { 'markdown' },
+		dependencies = { 'nvim-treesitter/nvim-treesitter', 'nvim-tree/nvim-web-devicons' },
+		opts = {},
+	},
 
 	-- Lua LSP support for Neovim config editing
 	{ 'folke/lazydev.nvim',          ft = 'lua',    opts = {} },
@@ -168,6 +232,16 @@ require('lazy').setup({
 			-- OR "folke/snacks.nvim",
 			"nvim-tree/nvim-web-devicons",
 		},
+	},
+
+	-- Git worktree
+	{
+		'ThePrimeagen/git-worktree.nvim',
+		dependencies = { 'nvim-lua/plenary.nvim', 'nvim-telescope/telescope.nvim' },
+		config = function()
+			require('git-worktree').setup({})
+			require('telescope').load_extension('git_worktree')
+		end,
 	},
 
 	-- Telescope (code search, files, symbols)
@@ -400,6 +474,7 @@ wk.add({
 	{ "<leader>b",  group = "Buffer" },
 	{ "<leader>bb", function() require('telescope.builtin').buffers() end,                          desc = "List buffers" },
 	{ "<leader>bd", function() vim.cmd('bdelete') end,                                              desc = "Close buffer" },
+	{ "<leader>br", function() vim.cmd('edit') end,                                                desc = "Reload buffer" },
 
 	-- Debug
 	{ "<leader>d",  group = "Debug" },
@@ -419,12 +494,25 @@ wk.add({
 	{ "<leader>ee", function() vim.cmd('Neotree toggle') end,                                       desc = "Neotree Toggle" },
 	{ "<leader>er", function() vim.cmd('Neotree reveal') end,                                       desc = "Neotree Reveal file" },
 	{ "<leader>eb", function() vim.cmd('Neotree toggle source=buffers') end,                        desc = "Neotree Buffers" },
+	{ "<leader>eg", function() vim.cmd('Neotree toggle source=git_status') end,                     desc = "Neotree Git status" },
 
 	-- Tabs
 	{ "<leader>t",  group = "Tab" },
 	{ "<leader>tc", function() vim.cmd('tabnew') end,                                               desc = "New tab" },
 	{ "<leader>tx", function() vim.cmd('tabclose') end,                                             desc = "Close tab" },
 	{ "<leader>to", function() vim.cmd('tabonly') end,                                              desc = "Close other tabs" },
+	{
+		"<leader>tr",
+		function()
+			vim.ui.input({ prompt = "Tab name: " }, function(name)
+				if name and name ~= "" then
+					vim.api.nvim_tabpage_set_var(0, "tab_name", name)
+					vim.cmd("redrawtabline")
+				end
+			end)
+		end,
+		desc = "Rename tab",
+	},
 
 	-- Find (Telescope)
 	{ "<leader>f",  group = "Find" },
@@ -463,6 +551,9 @@ wk.add({
 	{ "<leader>gr", function() require('gitsigns').reset_hunk() end,      desc = "Reset hunk" },
 	{ "<leader>gS", function() require('gitsigns').stage_buffer() end,    desc = "Stage buffer" },
 	{ "<leader>gR", function() require('gitsigns').reset_buffer() end,    desc = "Reset buffer" },
+	{ "<leader>gw", group = "Worktree" },
+	{ "<leader>gws", "<CMD>Telescope git_worktree git_worktrees<CR>", desc = "Switch worktree" },
+	{ "<leader>gwc", "<CMD>Telescope git_worktree create_git_worktree<CR>", desc = "Create worktree" },
 	{ "]c",         function() require('gitsigns').nav_hunk('next') end,  desc = "Next hunk" },
 	{ "[c",         function() require('gitsigns').nav_hunk('prev') end,  desc = "Prev hunk" },
 
@@ -495,6 +586,11 @@ wk.add({
 				require("octo.utils").create_base_search_command { include_current_repo = true }
 			end,
 			desc = "Search GitHub",
+		},
+		{
+			"<leader>Gr",
+			"<CMD>Octo pr reload<CR>",
+			desc = "Reload PR",
 		},
 	},
 
@@ -547,6 +643,7 @@ wk.add({
 	{ "<leader>sa",    "ggVG",                                                                                  desc = "Select all" },
 	{ "<leader>P",     function() vim.cmd('Lazy') end,                                                          desc = "Plugin manager" },
 	{ "<leader>tn",    function() vim.o.relativenumber = not vim.o.relativenumber end,                          desc = "Toggle relative numbers" },
+	{ "<leader>mt",    function() vim.cmd('RenderMarkdown toggle') end,                                            desc = "Toggle markdown render" },
 
 	-- Tab cycling
 	{ "<A-Tab>",       function() vim.cmd('tabnext') end,                                                       desc = "Next tab" },
