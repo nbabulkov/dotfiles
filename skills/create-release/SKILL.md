@@ -167,16 +167,34 @@ After completion, display:
 3. Link to the pull request
 4. Summary of changes included
 
-### Pending Migrations
+### Database Checks
 
-Check if there are database migration files included in this release. Look for common migration directories:
+#### Pending Migrations
+
+Check if there are database migration files included in this release:
 
 ```bash
 git diff $LATEST_TAG..vX.Y.Z --name-only | grep -iE '(migrations?|migrate)/' || echo "No migrations found"
 ```
 
-If any migrations are found, list them as a **TODO** reminder at the end of the output:
+If found, list them as a **TODO** reminder at the end of the output.
 
-> **TODO: Apply database migrations before/after deploying vX.Y.Z**
-> - `<migration_name>` — <brief description from folder/file name>
-> - Run the project's migration deploy command on the target environment
+#### Backward Compatibility Check
+
+**Delegate this to a background subagent** (Agent tool) while performing Steps 6-8.
+
+Subagent prompt (substitute actual tag values):
+
+> Check for backward-incompatible changes to Zod schemas that validate Prisma `Json` columns between `$LATEST_TAG` and `vX.Y.Z`.
+>
+> 1. Read `packages/database/prisma/schema.prisma` — list every `Json`/`Json?` field
+> 2. Search `packages/shared/`, `apps/web/src/`, `apps/llm-worker/src/` for the Zod schemas validating those fields
+> 3. Run `git diff $LATEST_TAG..vX.Y.Z -- <file>` for each schema file — skip unchanged
+> 4. Flag these breaking patterns in the diffs:
+>    - **Removed fields** — key existed before, now deleted
+>    - **Optional → required** — `.optional()`/`.nullable()` removed
+>    - **Renamed keys** — key removed + similar one added
+>    - **Changed enum values** — `z.enum()` values removed or renamed
+> 5. Report each finding: file path, pattern, before/after, severity (HIGH = parse throws, MEDIUM = silent data loss). If none found, say so.
+
+If the subagent finds issues, display as a **WARNING** table in the release output with action required (data migration or backward-compatible schema).

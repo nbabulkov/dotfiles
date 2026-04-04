@@ -1,10 +1,10 @@
 ---@diagnostic disable: undefined-global (only for: vim)
--- Neovim IDE Baseline (Python + TypeScript)
+-- Neovim IDE Baseline (Python + TypeScript + Go)
 -- Single-file init.lua aimed at stability and sane defaults.
 -- Features: file viewer, LSP, treesitter, completion, formatters, linters, debugger, Telescope search,
 -- Git integration, and AI chat (CodeCompanion with Azure OpenAI + LM Studio local models).
 --
--- Prereqs (system): ripgrep, node>=18, npm, python3-venv/pipx, git
+-- Prereqs (system): ripgrep, node>=18, npm, python3-venv/pipx, git, go
 -- Recommended global tools: `pipx install ruff debugpy` | `npm i -g typescript typescript-language-server prettier`
 -- Set API keys via env vars: AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT
 -- Optional: LM Studio running on localhost:1234 for local models
@@ -178,7 +178,7 @@ require('lazy').setup({
 	},
 
 	-- Lua LSP support for Neovim config editing
-	{ 'folke/lazydev.nvim',          ft = 'lua',    opts = {} },
+	{ 'folke/lazydev.nvim',      ft = 'lua', opts = {} },
 
 	-- File explorer
 	{
@@ -244,6 +244,17 @@ require('lazy').setup({
 		end,
 	},
 
+	-- TUIs
+	{
+		'jrop/tuis.nvim',
+		config = function()
+			-- Optional: set up keymaps
+			vim.keymap.set('n', '<leader>m', function()
+				require('tuis').choose()
+			end, { desc = 'Choose Morph UI' })
+		end
+	},
+
 	-- Telescope (code search, files, symbols)
 	{
 		'nvim-telescope/telescope.nvim',
@@ -280,7 +291,7 @@ require('lazy').setup({
 		'nvim-treesitter/nvim-treesitter',
 		build = ':TSUpdate',
 		opts = {
-			ensure_installed = { 'lua', 'vim', 'vimdoc', 'query', 'python', 'javascript', 'typescript', 'tsx', 'json', 'yaml', 'bash', 'markdown', 'sql' },
+			ensure_installed = { 'lua', 'vim', 'vimdoc', 'query', 'python', 'javascript', 'typescript', 'tsx', 'json', 'yaml', 'bash', 'markdown', 'sql', 'go', 'gomod', 'gosum', 'gowork', 'gotmpl' },
 			highlight = { enable = true },
 			indent = { enable = true },
 		},
@@ -295,7 +306,7 @@ require('lazy').setup({
 	{
 		'williamboman/mason-lspconfig.nvim',
 		opts = {
-			ensure_installed = { 'pyright', 'ruff', 'ts_ls', 'lua_ls', 'bashls', 'jsonls', 'yamlls' },
+			ensure_installed = { 'pyright', 'ruff', 'ts_ls', 'lua_ls', 'bashls', 'jsonls', 'yamlls', 'gopls' },
 		},
 	},
 	{
@@ -304,11 +315,18 @@ require('lazy').setup({
 			ensure_installed = {
 				-- linters/formatters
 				'ruff', 'prettier', 'biome', 'eslint_d', 'sqruff',
+				'goimports-reviser', 'gofumpt', 'golangci-lint',
 				-- debug adapters
-				'debugpy', 'js-debug-adapter',
+				'debugpy', 'js-debug-adapter', 'delve',
 			},
 			run_on_start = true,
 		},
+	},
+
+	-- AI inline completion
+	{
+		'milanglacier/minuet-ai.nvim',
+		dependencies = { 'nvim-lua/plenary.nvim' },
 	},
 
 	-- Completion
@@ -344,11 +362,48 @@ require('lazy').setup({
 	},
 	{
 		'jay-babu/mason-nvim-dap.nvim',
-		opts = { ensure_installed = { 'python', 'js' } },
+		opts = { ensure_installed = { 'python', 'js', 'delve' } },
 	},
 	{
 		'mxsdev/nvim-dap-vscode-js',
 		opts = { node_path = 'node', adapters = { 'pwa-node', 'pwa-chrome' } },
+	},
+
+	-- Go
+	{
+		'leoluz/nvim-dap-go',
+		dependencies = { 'mfussenegger/nvim-dap' },
+		ft = 'go',
+		opts = {},
+	},
+	{
+		'olexsmir/gopher.nvim',
+		ft = 'go',
+		build = ':GoInstallDeps',
+		opts = {},
+	},
+
+	-- Testing
+	{
+		'nvim-neotest/neotest',
+		lazy = true,
+		dependencies = {
+			'nvim-neotest/nvim-nio',
+			'nvim-lua/plenary.nvim',
+			'antoinemadec/FixCursorHold.nvim',
+			'nvim-treesitter/nvim-treesitter',
+			'fredrikaverpil/neotest-golang',
+		},
+		config = function()
+			require('neotest').setup({
+				adapters = {
+					require('neotest-golang')({
+						args = { '-count=1', '-race' },
+						recursive_run = true,
+					}),
+				},
+			})
+		end,
 	},
 
 	-- Database (SQL)
@@ -379,20 +434,58 @@ require('lazy').setup({
 				},
 			},
 			adapters = {
-				-- LM Studio local models (OpenAI-compatible API on localhost:1234)
-				lmstudio = function()
-					return require("codecompanion.adapters").extend("openai_compatible", {
-						env = {
-							url = "http://localhost:1234",
-							api_key = "lm-studio",
-						},
-						schema = {
-							model = {
-								default = "qwen/qwen3-4b-2507",
+				http = {
+					-- Groq cloud inference (OpenAI-compatible API)
+					groq = function()
+						return require("codecompanion.adapters").extend("openai", {
+							env = {
+								api_key = "cmd:security find-generic-password -s GROQ_API_KEY -w",
 							},
-						},
-					})
-				end,
+							name = "Groq",
+							url = "https://api.groq.com/openai/v1/chat/completions",
+							schema = {
+								model = {
+									default = "moonshotai/kimi-k2-instruct-0905",
+								},
+							},
+							handlers = {
+								-- Groq doesn't accept 'id' or 'opts' fields in messages
+								form_messages = function(self, messages)
+									for _, msg in ipairs(messages) do
+										msg.id = nil
+										msg.opts = nil
+										if msg.name then
+											msg.name = tostring(msg.name)
+										else
+											msg.name = nil
+										end
+										local supported = { role = true, content = true, name = true }
+										for prop in pairs(msg) do
+											if not supported[prop] then
+												msg[prop] = nil
+											end
+										end
+									end
+									return { messages = messages }
+								end,
+							},
+						})
+					end,
+					-- LM Studio local models (OpenAI-compatible API on localhost:1234)
+					lmstudio = function()
+						return require("codecompanion.adapters").extend("openai_compatible", {
+							env = {
+								url = "http://localhost:1234",
+								api_key = "lm-studio",
+							},
+							schema = {
+								model = {
+									default = "qwen/qwen3-4b-2507",
+								},
+							},
+						})
+					end,
+				},
 				acp = {
 					claude_code = function()
 						return require("codecompanion.adapters").extend("claude_code", {
@@ -412,14 +505,14 @@ require('lazy').setup({
 				chat = {
 					adapter = {
 						name = "claude_code",
-						model = "opus", -- or "sonnet"
+						model = "opus",
 					},
 				},
 				inline = {
-					adapter = "lmstudio",
+					adapter = "groq",
 				},
 				cmd = {
-					adapter = "lmstudio",
+					adapter = "groq",
 				},
 			},
 			opts = {
@@ -459,48 +552,53 @@ local wk = require('which-key')
 wk.add({
 	-- AI
 	{ "<leader>a",  group = "AI" },
-	{ "<leader>aa", function() require('codecompanion').toggle() end,                               desc = "Toggle chat" },
-	{ "<leader>ac", function() vim.cmd('CodeCompanionActions') end,                                 desc = "Actions menu" },
-	{ "<leader>ac", function() vim.cmd('CodeCompanionActions') end,                                 desc = "Actions menu",          mode = "v" },
-	{ "<leader>ai", ":'<,'>CodeCompanion ",                                                         desc = "Inline prompt",         mode = "v" },
-	{ "<leader>av", function() vim.cmd('CodeCompanionChat Add') end,                                desc = "Add selection to chat", mode = "v" },
-	{ "<leader>ae", function() require('codecompanion').prompt('explain') end,                      desc = "Explain code",          mode = "v" },
-	{ "<leader>af", function() require('codecompanion').prompt('fix') end,                          desc = "Fix code",              mode = "v" },
-	{ "<leader>at", function() require('codecompanion').prompt('tests') end,                        desc = "Generate tests",        mode = "v" },
-	{ "<leader>al", function() require('codecompanion').prompt('lsp') end,                          desc = "Explain LSP diagnostic" },
-	{ "<leader>am", function() require('codecompanion').prompt('commit') end,                       desc = "Commit message" },
+	{ "<leader>aa", function() require('codecompanion').toggle() end,           desc = "Toggle chat" },
+	{ "<leader>ac", function() vim.cmd('CodeCompanionActions') end,             desc = "Actions menu" },
+	{ "<leader>ac", function() vim.cmd('CodeCompanionActions') end,             desc = "Actions menu",          mode = "v" },
+	{ "<leader>ai", ":'<,'>CodeCompanion ",                                     desc = "Inline prompt",         mode = "v" },
+	{ "<leader>av", function() vim.cmd('CodeCompanionChat Add') end,            desc = "Add selection to chat", mode = "v" },
+	{ "<leader>ae", function() require('codecompanion').prompt('explain') end,  desc = "Explain code",          mode = "v" },
+	{ "<leader>af", function() require('codecompanion').prompt('fix') end,      desc = "Fix code",              mode = "v" },
+	{ "<leader>at", function() require('codecompanion').prompt('tests') end,    desc = "Generate tests",        mode = "v" },
+	{ "<leader>al", function() require('codecompanion').prompt('lsp') end,      desc = "Explain LSP diagnostic" },
+	{ "<leader>am", function() require('codecompanion').prompt('commit') end,   desc = "Commit message" },
 
 	-- Buffers
 	{ "<leader>b",  group = "Buffer" },
-	{ "<leader>bb", function() require('telescope.builtin').buffers() end,                          desc = "List buffers" },
-	{ "<leader>bd", function() vim.cmd('bdelete') end,                                              desc = "Close buffer" },
-	{ "<leader>br", function() vim.cmd('edit') end,                                                desc = "Reload buffer" },
+	{ "<leader>bb", function() require('telescope.builtin').buffers() end,      desc = "List buffers" },
+	{ "<leader>bd", function() vim.cmd('bdelete') end,                          desc = "Close buffer" },
+	{ "<leader>br", function() vim.cmd('edit') end,                             desc = "Reload buffer" },
 
 	-- Debug
 	{ "<leader>d",  group = "Debug" },
-	{ "<leader>db", function() require('dap').toggle_breakpoint() end,                              desc = "Toggle BP" },
-	{ "<leader>dc", function() require('dap').continue() end,                                       desc = "Continue" },
-	{ "<leader>di", function() require('dap').step_into() end,                                      desc = "Step Into" },
-	{ "<leader>do", function() require('dap').step_over() end,                                      desc = "Step Over" },
-	{ "<leader>dO", function() require('dap').step_out() end,                                       desc = "Step Out" },
-	{ "<leader>dr", function() require('dap').run_to_cursor() end,                                  desc = "Run to cursor" },
-	{ "<leader>dt", function() require('dap').terminate() end,                                      desc = "Terminate" },
-	{ "<leader>de", function() require('dapui').eval() end,                                         desc = "Eval expression" },
-	{ "<leader>de", function() require('dapui').eval() end,                                         desc = "Eval selection",        mode = "v" },
-	{ "<leader>du", function() require('dapui').toggle() end,                                       desc = "DAP UI" },
+	{ "<leader>db", function() require('dap').toggle_breakpoint() end,          desc = "Toggle BP" },
+	{ "<leader>dc", function() require('dap').continue() end,                   desc = "Continue" },
+	{ "<leader>di", function() require('dap').step_into() end,                  desc = "Step Into" },
+	{ "<leader>do", function() require('dap').step_over() end,                  desc = "Step Over" },
+	{ "<leader>dO", function() require('dap').step_out() end,                   desc = "Step Out" },
+	{ "<leader>dr", function() require('dap').run_to_cursor() end,              desc = "Run to cursor" },
+	{ "<leader>dt", function() require('dap').terminate() end,                  desc = "Terminate" },
+	{ "<leader>de", function() require('dapui').eval() end,                     desc = "Eval expression" },
+	{ "<leader>de", function() require('dapui').eval() end,                     desc = "Eval selection",        mode = "v" },
+	{ "<leader>du", function() require('dapui').toggle() end,                   desc = "DAP UI" },
 
 	-- Explore
 	{ "<leader>e",  group = "Explore" },
-	{ "<leader>ee", function() vim.cmd('Neotree toggle') end,                                       desc = "Neotree Toggle" },
-	{ "<leader>er", function() vim.cmd('Neotree reveal') end,                                       desc = "Neotree Reveal file" },
-	{ "<leader>eb", function() vim.cmd('Neotree toggle source=buffers') end,                        desc = "Neotree Buffers" },
-	{ "<leader>eg", function() vim.cmd('Neotree toggle source=git_status') end,                     desc = "Neotree Git status" },
+	{ "<leader>ee", function() vim.cmd('Neotree toggle') end,                   desc = "Neotree Toggle" },
+	{ "<leader>er", function() vim.cmd('Neotree reveal') end,                   desc = "Neotree Reveal file" },
+	{ "<leader>eb", function() vim.cmd('Neotree toggle source=buffers') end,    desc = "Neotree Buffers" },
+	{ "<leader>eg", function() vim.cmd('Neotree toggle source=git_status') end, desc = "Neotree Git status" },
 
 	-- Tabs
 	{ "<leader>t",  group = "Tab" },
-	{ "<leader>tc", function() vim.cmd('tabnew') end,                                               desc = "New tab" },
-	{ "<leader>tx", function() vim.cmd('tabclose') end,                                             desc = "Close tab" },
-	{ "<leader>to", function() vim.cmd('tabonly') end,                                              desc = "Close other tabs" },
+	{ "<leader>tc", function() vim.cmd('tabnew') end,                           desc = "New tab" },
+	{ "<leader>tx", function() vim.cmd('tabclose') end,                         desc = "Close tab" },
+	{ "<leader>to", function() vim.cmd('tabonly') end,                          desc = "Close other tabs" },
+	{ "<leader>t1", "1gt",                                                      desc = "Tab 1" },
+	{ "<leader>t2", "2gt",                                                      desc = "Tab 2" },
+	{ "<leader>t3", "3gt",                                                      desc = "Tab 3" },
+	{ "<leader>t4", "4gt",                                                      desc = "Tab 4" },
+	{ "<leader>t5", "5gt",                                                      desc = "Tab 5" },
 	{
 		"<leader>tr",
 		function()
@@ -540,25 +638,25 @@ wk.add({
 		end,
 		desc = "DiffView toggle"
 	},
-	{ "<leader>gg", function() require('neogit').open() end,              desc = "Neogit" },
-	{ "<leader>gl", function() vim.cmd('LazyGit') end,                    desc = "LazyGit" },
-	{ "<leader>gL", function() require('neogit').open({ 'log' }) end,     desc = "Log" },
-	{ "<leader>gh", function() vim.cmd('DiffviewFileHistory %') end,      desc = "File history" },
-	{ "<leader>gH", function() vim.cmd('DiffviewFileHistory') end,        desc = "Repo history" },
-	{ "<leader>gp", function() require('gitsigns').preview_hunk() end,    desc = "Preview hunk" },
-	{ "<leader>gs", function() require('gitsigns').stage_hunk() end,      desc = "Stage hunk" },
-	{ "<leader>gu", function() require('gitsigns').undo_stage_hunk() end, desc = "Undo stage hunk" },
-	{ "<leader>gr", function() require('gitsigns').reset_hunk() end,      desc = "Reset hunk" },
-	{ "<leader>gS", function() require('gitsigns').stage_buffer() end,    desc = "Stage buffer" },
-	{ "<leader>gR", function() require('gitsigns').reset_buffer() end,    desc = "Reset buffer" },
-	{ "<leader>gw", group = "Worktree" },
-	{ "<leader>gws", "<CMD>Telescope git_worktree git_worktrees<CR>", desc = "Switch worktree" },
+	{ "<leader>gg",  function() require('neogit').open() end,               desc = "Neogit" },
+	{ "<leader>gl",  function() vim.cmd('LazyGit') end,                     desc = "LazyGit" },
+	{ "<leader>gL",  function() require('neogit').open({ 'log' }) end,      desc = "Log" },
+	{ "<leader>gh",  function() vim.cmd('DiffviewFileHistory %') end,       desc = "File history" },
+	{ "<leader>gH",  function() vim.cmd('DiffviewFileHistory') end,         desc = "Repo history" },
+	{ "<leader>gp",  function() require('gitsigns').preview_hunk() end,     desc = "Preview hunk" },
+	{ "<leader>gs",  function() require('gitsigns').stage_hunk() end,       desc = "Stage hunk" },
+	{ "<leader>gu",  function() require('gitsigns').undo_stage_hunk() end,  desc = "Undo stage hunk" },
+	{ "<leader>gr",  function() require('gitsigns').reset_hunk() end,       desc = "Reset hunk" },
+	{ "<leader>gS",  function() require('gitsigns').stage_buffer() end,     desc = "Stage buffer" },
+	{ "<leader>gR",  function() require('gitsigns').reset_buffer() end,     desc = "Reset buffer" },
+	{ "<leader>gw",  group = "Worktree" },
+	{ "<leader>gws", "<CMD>Telescope git_worktree git_worktrees<CR>",       desc = "Switch worktree" },
 	{ "<leader>gwc", "<CMD>Telescope git_worktree create_git_worktree<CR>", desc = "Create worktree" },
-	{ "]c",         function() require('gitsigns').nav_hunk('next') end,  desc = "Next hunk" },
-	{ "[c",         function() require('gitsigns').nav_hunk('prev') end,  desc = "Prev hunk" },
+	{ "]c",          function() require('gitsigns').nav_hunk('next') end,   desc = "Next hunk" },
+	{ "[c",          function() require('gitsigns').nav_hunk('prev') end,   desc = "Prev hunk" },
 
 	-- Github
-	{ "<leader>G",  group = "GitHub" },
+	{ "<leader>G",   group = "GitHub" },
 	{
 		{
 			"<leader>Gi",
@@ -637,22 +735,27 @@ wk.add({
 	{ "<leader>cd",    function() vim.fn.setreg('+', vim.fn.getcwd()) end,                                      desc = "Working directory" },
 	{ "<leader>cb",    function() vim.fn.setreg('+', vim.trim(vim.fn.system('git branch --show-current'))) end, desc = "Git branch" },
 
+	-- Tests (neotest)
+	{ "<leader>n",     group = "Test" },
+	{ "<leader>nn",    function() require('neotest').run.run() end,                                             desc = "Run nearest" },
+	{ "<leader>nf",    function() require('neotest').run.run(vim.fn.expand('%')) end,                           desc = "Run file" },
+	{ "<leader>nd",    function() require('neotest').run.run({ strategy = 'dap' }) end,                        desc = "Debug nearest" },
+	{ "<leader>ns",    function() require('neotest').run.stop() end,                                           desc = "Stop" },
+	{ "<leader>no",    function() require('neotest').output.open({ enter = true }) end,                        desc = "Output" },
+	{ "<leader>nO",    function() require('neotest').output_panel.toggle() end,                                desc = "Output panel" },
+	{ "<leader>nS",    function() require('neotest').summary.toggle() end,                                     desc = "Summary" },
+
 	-- Misc
 	{ "<leader>qq",    function() vim.cmd('qa') end,                                                            desc = "Quit all" },
 	{ "<leader><Esc>", function() vim.cmd('noh') end,                                                           desc = "No highlight" },
 	{ "<leader>sa",    "ggVG",                                                                                  desc = "Select all" },
 	{ "<leader>P",     function() vim.cmd('Lazy') end,                                                          desc = "Plugin manager" },
 	{ "<leader>tn",    function() vim.o.relativenumber = not vim.o.relativenumber end,                          desc = "Toggle relative numbers" },
-	{ "<leader>mt",    function() vim.cmd('RenderMarkdown toggle') end,                                            desc = "Toggle markdown render" },
+	{ "<leader>rm",    function() vim.cmd('RenderMarkdown toggle') end,                                         desc = "Toggle markdown render" },
 
 	-- Tab cycling
 	{ "<A-Tab>",       function() vim.cmd('tabnext') end,                                                       desc = "Next tab" },
 	{ "<A-S-Tab>",     function() vim.cmd('tabprevious') end,                                                   desc = "Prev tab" },
-	{ "<leader>1",     "1gt",                                                                                   desc = "Tab 1" },
-	{ "<leader>2",     "2gt",                                                                                   desc = "Tab 2" },
-	{ "<leader>3",     "3gt",                                                                                   desc = "Tab 3" },
-	{ "<leader>4",     "4gt",                                                                                   desc = "Tab 4" },
-	{ "<leader>5",     "5gt",                                                                                   desc = "Tab 5" },
 
 	-- Buffer cycling
 	{ "<Tab>",         function() vim.cmd('bnext') end,                                                         desc = "Next buffer",            mode = "n" },
@@ -669,6 +772,31 @@ wk.add({
 	{ "<C-Down>",      function() vim.cmd('resize -2') end,                                                     desc = "Decrease height" },
 	{ "<C-Left>",      function() vim.cmd('vertical resize -2') end,                                            desc = "Decrease width" },
 	{ "<C-Right>",     function() vim.cmd('vertical resize +2') end,                                            desc = "Increase width" },
+})
+
+-- Go-specific keymaps (buffer-local via which-key, only active in Go files)
+vim.api.nvim_create_autocmd('FileType', {
+	pattern = 'go',
+	callback = function(args)
+		wk.add({
+			buffer = args.buf,
+			-- Go code generation (gopher.nvim) — under LSP group
+			{ "<leader>lj", "<CMD>GoTagAdd json<CR>",                                    desc = "Add json tags" },
+			{ "<leader>ly", "<CMD>GoTagAdd yaml<CR>",                                    desc = "Add yaml tags" },
+			{ "<leader>lJ", "<CMD>GoTagRm json<CR>",                                     desc = "Remove json tags" },
+			{ "<leader>le", "<CMD>GoIfErr<CR>",                                          desc = "Insert if err" },
+			{ "<leader>li", "<CMD>GoImpl<CR>",                                           desc = "Implement interface" },
+			{ "<leader>lG", "<CMD>GoGenerate<CR>",                                       desc = "Go generate" },
+			{ "<leader>lc", "<CMD>GoCmt<CR>",                                            desc = "Generate doc comment" },
+			-- Go test generation (gopher.nvim) — under Test group
+			{ "<leader>nT", "<CMD>GoTestAdd<CR>",                                        desc = "Generate test for func" },
+			{ "<leader>nA", "<CMD>GoTestsAll<CR>",                                       desc = "Generate all tests" },
+			{ "<leader>nE", "<CMD>GoTestsExp<CR>",                                       desc = "Generate exported tests" },
+			-- Debug Go test (nvim-dap-go) — under Debug group
+			{ "<leader>dg", function() require('dap-go').debug_test() end,                desc = "Debug Go test" },
+			{ "<leader>dG", function() require('dap-go').debug_last_test() end,           desc = "Debug last Go test" },
+		})
+	end,
 })
 
 -- 5) Completion (cmp)
@@ -694,12 +822,45 @@ require('cmp').setup({
 		end, { 'i', 's' }),
 	}),
 	sources = cmp.config.sources({
+		{ name = 'minuet' },
 		{ name = 'nvim_lsp' },
 		{ name = 'luasnip' }, -- FIX: was missing despite cmp_luasnip being installed
 		{ name = 'path' },
 		{ name = 'buffer' },
 	}),
 	formatting = { format = lspkind.cmp_format({ mode = 'symbol_text', maxwidth = 50 }) },
+})
+
+-- Minuet AI inline completion (Groq + llama-3.3-70b)
+require('minuet').setup({
+	provider = 'openai_compatible',
+	throttle = 1000,
+	debounce = 500,
+	n_completions = 1,
+	provider_options = {
+		openai_compatible = {
+			api_key = function() return vim.fn.system('security find-generic-password -s GROQ_API_KEY -w'):gsub('%s+$', '') end,
+			end_point = 'https://api.groq.com/openai/v1/chat/completions',
+			model = 'llama-3.3-70b-versatile',
+			name = 'Groq',
+			stream = true,
+			optional = {
+				max_tokens = 256,
+				top_p = 0.9,
+			},
+		},
+	},
+	virtualtext = {
+		auto_trigger_ft = {},  -- disable auto-trigger, use manual keybind
+		keymap = {
+			accept = '<A-A>',
+			accept_line = '<A-a>',
+			accept_n_lines = '<A-z>',
+			next = '<A-j>',
+			prev = '<A-k>',
+			dismiss = '<A-e>',
+		},
+	},
 })
 
 -- SQL completion via dadbod
@@ -761,8 +922,32 @@ vim.lsp.config('lua_ls', {
 	},
 })
 
+-- Go
+vim.lsp.config('gopls', {
+	settings = {
+		gopls = {
+			gofumpt = true,
+			analyses = {
+				unusedparams = true,
+				shadow = true,
+				nilness = true,
+				unusedwrite = true,
+			},
+			hints = {
+				assignVariableTypes = true,
+				compositeLiteralFields = true,
+				compositeLiteralTypes = true,
+				constantValues = true,
+				functionTypeParameters = true,
+				parameterNames = true,
+				rangeVariableTypes = true,
+			},
+		},
+	},
+})
+
 -- Enable all configured servers
-vim.lsp.enable({ 'ruff', 'pyright', 'ts_ls', 'jsonls', 'yamlls', 'bashls', 'lua_ls' })
+vim.lsp.enable({ 'ruff', 'pyright', 'ts_ls', 'jsonls', 'yamlls', 'bashls', 'lua_ls', 'gopls' })
 
 -- LSP keymaps (buffer-local, set on attach)
 vim.api.nvim_create_autocmd('LspAttach', {
@@ -797,6 +982,7 @@ require('conform').setup({
 		json = biome_or_prettier,
 		yaml = { 'prettier' },
 		markdown = { 'prettier' },
+		go = { 'goimports-reviser', 'gofumpt' },
 		sh = { 'shfmt' },
 		sql = { 'sqruff' },
 		mysql = { 'sqruff' },
@@ -823,6 +1009,7 @@ lint.linters_by_ft = {
 	typescript = { 'eslint_d' },
 	javascriptreact = { 'eslint_d' },
 	typescriptreact = { 'eslint_d' },
+	go = { 'golangcilint' },
 	sql = { 'sqruff' },
 	mysql = { 'sqruff' },
 	plsql = { 'sqruff' },

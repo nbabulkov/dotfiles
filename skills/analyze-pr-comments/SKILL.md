@@ -15,79 +15,36 @@ Fetches unresolved PR review comments and analyzes each for legitimacy, priority
 - User asks "what PR comments should I address first?"
 - User wants to check if reviewer feedback is valid
 
+## Script
+
+All GitHub API calls are handled by the wrapper script at:
+
+```
+.claude/skills/analyze-pr-comments/pr-comments.sh
+```
+
+Commands:
+
+| Command | Description |
+|---|---|
+| `./pr-comments.sh fetch [--pr <N>]` | Fetch unresolved threads as JSON (auto-detects PR from branch) |
+| `./pr-comments.sh resolve <thread-id>` | Resolve a single thread by ID |
+| `./pr-comments.sh resolve-all [--pr <N>]` | Resolve all unresolved threads |
+| `./pr-comments.sh verify [--pr <N>]` | Show resolution state summary |
+
+Run the script from the repo root. If `--pr` is omitted, the script detects the PR from the current branch.
+
 ## Workflow
 
-```dot
-digraph analyze_flow {
-    "Get PR number" [shape=box];
-    "Fetch unresolved threads" [shape=box];
-    "For each comment" [shape=diamond];
-    "Read affected code" [shape=box];
-    "Analyze legitimacy" [shape=box];
-    "Assign priority" [shape=box];
-    "Build table row" [shape=box];
-    "Sort by priority" [shape=box];
-    "Output table" [shape=box];
-
-    "Get PR number" -> "Fetch unresolved threads";
-    "Fetch unresolved threads" -> "For each comment";
-    "For each comment" -> "Read affected code" [label="more"];
-    "Read affected code" -> "Analyze legitimacy";
-    "Analyze legitimacy" -> "Assign priority";
-    "Assign priority" -> "Build table row";
-    "Build table row" -> "For each comment";
-    "For each comment" -> "Sort by priority" [label="done"];
-    "Sort by priority" -> "Output table";
-}
-```
-
-## Step 1: Get PR Number
-
-If not provided, detect from current branch:
-```bash
-gh pr view --json number -q '.number'
-```
-
-Or user provides PR number/URL directly.
-
-## Step 2: Fetch Unresolved Review Threads
+### Step 1: Fetch unresolved threads
 
 ```bash
-gh api graphql -f query='
-query($owner: String!, $repo: String!, $pr: Int!) {
-  repository(owner: $owner, name: $repo) {
-    pullRequest(number: $pr) {
-      title
-      url
-      reviewThreads(first: 100) {
-        nodes {
-          isResolved
-          isOutdated
-          path
-          line
-          startLine
-          comments(first: 10) {
-            nodes {
-              body
-              author { login }
-              createdAt
-            }
-          }
-        }
-      }
-    }
-  }
-}' -f owner={owner} -f repo={repo} -F pr={number}
+.claude/skills/analyze-pr-comments/pr-comments.sh fetch [--pr <N>]
 ```
 
-Get owner/repo from:
-```bash
-gh repo view --json owner,name -q '.owner.login + "/" + .name'
-```
+Returns JSON with `title`, `url`, and `threads[]` (each with `id`, `path`, `line`, `comments[]`).
 
-Filter to `isResolved: false` threads only.
-
-## Step 3: Analyze Each Comment
+### Step 2: Analyze each thread
 
 For each unresolved thread:
 
@@ -103,18 +60,33 @@ For each unresolved thread:
    - **P2 Medium**: Code quality, maintainability, minor issues
    - **P3 Low**: Style, preferences, nitpicks
 
-## Step 4: Output Analysis Table
+### Step 3: Output analysis table
 
 Sort by priority (P0 first), then by legitimacy (Legit first).
 
-**Format:**
+| # | Priority | Legit? | Summary | File:Line | Impact | Recommendation |
+|---|----------|--------|---------|-----------|--------|----------------|
+| 1 | P0 | Yes | Missing auth check | api/users.ts:45 | Security vuln | Add auth middleware |
+| 2 | P1 | Partial | Race condition | lib/sync.ts:120 | Edge case bug | Add mutex if high traffic |
+| 3 | P2 | Yes | Magic number | utils/calc.ts:33 | Maintainability | Extract to constant |
+| 4 | P3 | No | Naming preference | models/user.ts:12 | Style only | Keep (consistent with codebase) |
 
-| #   | Priority | Legit?  | Summary                        | File:Line         | Impact                 | Recommendation                          |
-| --- | -------- | ------- | ------------------------------ | ----------------- | ---------------------- | --------------------------------------- |
-| 1   | P0       | Yes     | Missing auth check on endpoint | api/users.ts:45   | Security vulnerability | Add auth middleware                     |
-| 2   | P1       | Partial | Race condition possible        | lib/sync.ts:120   | Edge case bug          | Add mutex if high traffic               |
-| 3   | P2       | Yes     | Magic number should be const   | utils/calc.ts:33  | Maintainability        | Extract to named constant               |
-| 4   | P3       | No      | Prefers different naming       | models/user.ts:12 | Style only             | Keep current (consistent with codebase) |
+### Step 4: Resolve threads after fixes
+
+After implementing and verifying fixes:
+
+```bash
+# Resolve a single thread
+.claude/skills/analyze-pr-comments/pr-comments.sh resolve <thread-id>
+
+# Resolve all unresolved threads
+.claude/skills/analyze-pr-comments/pr-comments.sh resolve-all [--pr <N>]
+
+# Verify resolution state
+.claude/skills/analyze-pr-comments/pr-comments.sh verify [--pr <N>]
+```
+
+Only resolve threads when the fix is present in the branch (or intentionally dismissed with rationale).
 
 ## Analysis Guidelines
 
@@ -134,44 +106,7 @@ Sort by priority (P0 first), then by legitimacy (Legit first).
 
 ### Priority Assignment
 
-**P0 - Critical (address immediately):**
-- Security vulnerabilities (auth bypass, injection, data exposure)
-- Data loss or corruption scenarios
-- Application crashes or hangs
-- Breaking changes to public APIs
-
-**P1 - High (address before merge):**
-- Functional bugs
-- Performance regressions
-- Missing error handling for likely scenarios
-- Logic errors
-
-**P2 - Medium (should address):**
-- Code quality improvements
-- Missing tests for new code
-- Documentation gaps
-- Minor performance optimizations
-
-**P3 - Low (nice to have):**
-- Style/formatting preferences
-- Alternative approaches (equally valid)
-- Speculative improvements
-- Nitpicks
-
-## Example Output
-
-**PR #123: Add user authentication** - 5 unresolved comments
-
-| #   | Priority | Legit?  | Summary                     | File:Line           | Impact                 | Recommendation                          |
-| --- | -------- | ------- | --------------------------- | ------------------- | ---------------------- | --------------------------------------- |
-| 1   | P0       | Yes     | JWT secret hardcoded        | auth/jwt.ts:15      | Critical security flaw | Move to env variable                    |
-| 2   | P1       | Yes     | Missing password validation | auth/register.ts:42 | Allows weak passwords  | Add zod schema validation               |
-| 3   | P2       | Partial | Consider rate limiting      | auth/login.ts:28    | Brute force possible   | Add if public-facing, skip for internal |
-| 4   | P3       | No      | Rename `usr` to `user`      | auth/session.ts:8   | Style preference       | Keep - matches existing patterns        |
-
----
-
-**Summary:**
-- 2 comments require immediate action (P0-P1)
-- 1 comment worth addressing (P2)
-- 1 comment can be dismissed with explanation (P3)
+- **P0 Critical**: Security vulnerabilities, data loss/corruption, crashes, breaking API changes
+- **P1 High**: Functional bugs, performance regressions, missing error handling, logic errors
+- **P2 Medium**: Code quality, missing tests, documentation gaps, minor perf optimizations
+- **P3 Low**: Style/formatting, alternative approaches, speculative improvements, nitpicks
