@@ -9,16 +9,28 @@ usage() {
     echo "Snapshot dotfiles from the system into this repo."
     echo ""
     echo "Options:"
+    echo "  --claude-dir DIR   Base Claude directory (default: ~/.claude)"
     echo "  --skills-dir DIR   Source directory for Claude skills (default: ~/.claude/skills)"
+    echo "  --agents-dir DIR   Source directory for Claude agents (default: ~/.claude/agents)"
     echo "  --help             Show this help message"
 }
 
-SKILLS_DIR=~/.claude/skills
+CLAUDE_DIR=~/.claude
+SKILLS_DIR=""
+AGENTS_DIR=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --claude-dir)
+            CLAUDE_DIR="$2"
+            shift 2
+            ;;
         --skills-dir)
             SKILLS_DIR="$2"
+            shift 2
+            ;;
+        --agents-dir)
+            AGENTS_DIR="$2"
             shift 2
             ;;
         --help)
@@ -32,6 +44,13 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+if [[ -z "$SKILLS_DIR" ]]; then
+    SKILLS_DIR="$CLAUDE_DIR/skills"
+fi
+if [[ -z "$AGENTS_DIR" ]]; then
+    AGENTS_DIR="$CLAUDE_DIR/agents"
+fi
 
 UPDATED=0
 
@@ -87,6 +106,7 @@ fi
 
 echo "Claude skills (from $SKILLS_DIR):"
 if [[ -d "$SKILLS_DIR" ]]; then
+    mkdir -p "$DOTFILES_DIR/skills"
     # Find valid skills — directories containing a SKILL.md — and copy them
     find "$SKILLS_DIR" -name "SKILL.md" -type f | while read -r skill_md; do
         skill_root="$(dirname "$skill_md")"
@@ -96,6 +116,29 @@ if [[ -d "$SKILLS_DIR" ]]; then
     done
 else
     log "skip (not found): $SKILLS_DIR"
+fi
+
+echo "Claude agents (from $AGENTS_DIR):"
+if [[ -d "$AGENTS_DIR" ]]; then
+    mkdir -p "$DOTFILES_DIR/agents"
+    # Copy directory-style agents (dirs containing AGENT.md)
+    find "$AGENTS_DIR" -name "AGENT.md" -type f | while read -r agent_md; do
+        agent_root="$(dirname "$agent_md")"
+        agent_name="${agent_root#"$AGENTS_DIR"/}"
+        log "copy: $agent_root -> agents/$agent_name"
+        cp -R "$agent_root" "$DOTFILES_DIR/agents/"
+    done
+
+    # Copy file-style agents (*.md files, e.g. rate.md)
+    find "$AGENTS_DIR" -name "*.md" -type f ! -name "AGENT.md" | while read -r agent_file; do
+        rel_path="${agent_file#"$AGENTS_DIR"/}"
+        dst="$DOTFILES_DIR/agents/$rel_path"
+        mkdir -p "$(dirname "$dst")"
+        log "copy: $agent_file -> agents/$rel_path"
+        cp "$agent_file" "$dst"
+    done
+else
+    log "skip (not found): $AGENTS_DIR"
 fi
 
 echo "Done. $UPDATED file(s) updated."
