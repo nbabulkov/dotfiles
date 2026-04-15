@@ -84,7 +84,14 @@ copy_if_newer ~/.gitconfig "$DOTFILES_DIR/.gitconfig"
 
 echo "Editors:"
 copy_if_newer ~/.vimrc "$DOTFILES_DIR/.vimrc"
-copy_if_newer ~/.config/nvim/init.lua "$DOTFILES_DIR/nvim/init.lua"
+if [[ -d ~/.config/nvim ]]; then
+    mkdir -p "$DOTFILES_DIR/nvim"
+    rsync -a --delete --exclude='.claude' --exclude='lazy-lock.json' ~/.config/nvim/ "$DOTFILES_DIR/nvim/"
+    log "sync: ~/.config/nvim -> nvim/"
+    UPDATED=$((UPDATED + 1))
+else
+    log "skip (not found): ~/.config/nvim"
+fi
 
 echo "Terminal:"
 copy_if_newer ~/.tmux.conf "$DOTFILES_DIR/.tmux.conf"

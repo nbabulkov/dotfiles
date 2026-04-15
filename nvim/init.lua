@@ -90,7 +90,18 @@ require('lazy').setup({
 			},
 		},
 	},
-	{ "nvim-tree/nvim-web-devicons", opts = {} }, { 'folke/which-key.nvim', opts = {} },
+	{ "nvim-tree/nvim-web-devicons", opts = {} },
+	{
+		'folke/which-key.nvim',
+		config = function()
+			local wk = require('which-key')
+			wk.setup({})
+			-- Keymap spec lives in lua/keymaps.lua so :Lazy reload which-key.nvim
+			-- re-reads the file and re-applies bindings.
+			package.loaded['keymaps'] = nil
+			wk.add(require('keymaps'))
+		end,
+	},
 	{
 		"levouh/tint.nvim",
 		opts = {
@@ -174,7 +185,27 @@ require('lazy').setup({
 		'MeanderingProgrammer/render-markdown.nvim',
 		ft = { 'markdown' },
 		dependencies = { 'nvim-treesitter/nvim-treesitter', 'nvim-tree/nvim-web-devicons' },
-		opts = {},
+		opts = {
+			-- Wide tables break when lines wrap — extmark virtual text can't
+			-- track wrapped cells, so disable wrap in rendered markdown view.
+			-- With wrap off, overly wide tables scroll horizontally intact.
+			win_options = {
+				wrap = { default = vim.o.wrap, rendered = false },
+			},
+			-- Stop render from un-rendering the cursor row. Eliminates the
+			-- flicker you get when scrolling horizontally across wide tables.
+			anti_conceal = { enabled = false },
+			pipe_table = {
+				-- 'trimmed' pads cells to the max *visible* column width,
+				-- so columns align even when conceal changes cell width
+				-- (e.g. **bold** → bold). Tighter than 'padded', which
+				-- reserves width for concealed chars too. Conceal and
+				-- highlights apply, so bold/italics/inline code render.
+				cell = 'trimmed',
+				-- Rounded corners on the top/bottom borders.
+				preset = 'round',
+			},
+		},
 	},
 
 	-- Lua LSP support for Neovim config editing
@@ -193,8 +224,32 @@ require('lazy').setup({
 					hide_dotfiles = false,
 					hide_hidden = false,
 				},
+				components = {
+					-- Override the root name so long paths clip from the beginning
+					-- (keeping the project dir visible) instead of from the end.
+					name = function(config, node, state)
+						local result = require('neo-tree.sources.common.components').name(config, node, state)
+						if node:get_depth() == 1 and result.text then
+							local winid = state.winid
+							if winid and vim.api.nvim_win_is_valid(winid) then
+								local win_width = vim.api.nvim_win_get_width(winid)
+								-- leave a little room for icon + padding
+								local max = math.max(8, win_width - 4)
+								local text = result.text
+								local w = vim.api.nvim_strwidth(text)
+								if w > max then
+									local excess = w - max + 1 -- +1 for the ellipsis
+									result.text = '…' .. text:sub(excess + 1)
+								end
+							end
+						end
+						return result
+					end,
+				},
 			},
 			window = {
+				width = 40,
+				auto_expand_width = false,
 				mappings = {
 					["<space>"] = "none",
 				},
@@ -291,7 +346,7 @@ require('lazy').setup({
 		'nvim-treesitter/nvim-treesitter',
 		build = ':TSUpdate',
 		opts = {
-			ensure_installed = { 'lua', 'vim', 'vimdoc', 'query', 'python', 'javascript', 'typescript', 'tsx', 'json', 'yaml', 'bash', 'markdown', 'sql', 'go', 'gomod', 'gosum', 'gowork', 'gotmpl' },
+			ensure_installed = { 'lua', 'vim', 'vimdoc', 'query', 'python', 'javascript', 'typescript', 'tsx', 'json', 'yaml', 'bash', 'markdown', 'sql', 'go', 'gomod', 'gosum', 'gowork', 'gotmpl', 'rust', 'toml' },
 			highlight = { enable = true },
 			indent = { enable = true },
 		},
@@ -306,7 +361,7 @@ require('lazy').setup({
 	{
 		'williamboman/mason-lspconfig.nvim',
 		opts = {
-			ensure_installed = { 'pyright', 'ruff', 'ts_ls', 'lua_ls', 'bashls', 'jsonls', 'yamlls', 'gopls' },
+			ensure_installed = { 'pyright', 'ruff', 'ts_ls', 'lua_ls', 'bashls', 'jsonls', 'yamlls', 'gopls', 'rust_analyzer' },
 		},
 	},
 	{
@@ -317,7 +372,7 @@ require('lazy').setup({
 				'ruff', 'prettier', 'biome', 'eslint_d', 'sqruff',
 				'goimports-reviser', 'gofumpt', 'golangci-lint',
 				-- debug adapters
-				'debugpy', 'js-debug-adapter', 'delve',
+				'debugpy', 'js-debug-adapter', 'delve', 'codelldb',
 			},
 			run_on_start = true,
 		},
@@ -362,7 +417,7 @@ require('lazy').setup({
 	},
 	{
 		'jay-babu/mason-nvim-dap.nvim',
-		opts = { ensure_installed = { 'python', 'js', 'delve' } },
+		opts = { ensure_installed = { 'python', 'js', 'delve', 'codelldb' } },
 	},
 	{
 		'mxsdev/nvim-dap-vscode-js',
@@ -383,6 +438,18 @@ require('lazy').setup({
 		opts = {},
 	},
 
+	-- Rust
+	{
+		'Saecki/crates.nvim',
+		event = 'BufRead Cargo.toml',
+		dependencies = { 'nvim-lua/plenary.nvim' },
+		opts = {
+			completion = {
+				cmp = { enabled = true },
+			},
+		},
+	},
+
 	-- Testing
 	{
 		'nvim-neotest/neotest',
@@ -393,6 +460,7 @@ require('lazy').setup({
 			'antoinemadec/FixCursorHold.nvim',
 			'nvim-treesitter/nvim-treesitter',
 			'fredrikaverpil/neotest-golang',
+			'rouge8/neotest-rust',
 		},
 		config = function()
 			require('neotest').setup({
@@ -401,6 +469,7 @@ require('lazy').setup({
 						args = { '-count=1', '-race' },
 						recursive_run = true,
 					}),
+					require('neotest-rust')({}),
 				},
 			})
 		end,
@@ -536,6 +605,36 @@ require('lazy').setup({
 		}
 	},
 
+	-- Obsidian.nvim – note-taking inside Neovim with Obsidian vaults
+	{
+		"epwalsh/obsidian.nvim",
+		version = "*",
+		lazy = true,
+		ft = "markdown",
+		dependencies = { "nvim-lua/plenary.nvim" },
+		opts = {
+			workspaces = {
+				{
+					name = "personal",
+					path = "~/Documents/obsidian-vaults/personal",
+				},
+			},
+			completion = {
+				nvim_cmp = true,
+				min_chars = 2,
+			},
+			new_notes_location = "current_dir",
+			preferred_link_style = "wiki",
+			ui = {
+				enable = true,
+				checkboxes = {
+					[" "] = { char = "󰄱", hl_group = "ObsidianTodo" },
+					["x"] = { char = "", hl_group = "ObsidianDone" },
+				},
+			},
+		},
+	},
+
 }, {
 	checker = { enabled = false },
 })
@@ -545,256 +644,55 @@ vim.cmd.colorscheme('moonfly')
 vim.api.nvim_create_autocmd("ColorScheme", {
 	callback = function()
 		vim.api.nvim_set_hl(0, "NormalNC", { bg = "#121212", fg = "#555555" })
+		vim.api.nvim_set_hl(0, "NormalFloat", { bg = "#1e1e2e", fg = "#cdd6f4" })
+		vim.api.nvim_set_hl(0, "FloatBorder", { bg = "#1e1e2e", fg = "#89b4fa" })
 	end,
 })
--- 4) Keymaps (all leader + global keymaps in one place via which-key)
-local wk = require('which-key')
-wk.add({
-	-- AI
-	{ "<leader>a",  group = "AI" },
-	{ "<leader>aa", function() require('codecompanion').toggle() end,           desc = "Toggle chat" },
-	{ "<leader>ac", function() vim.cmd('CodeCompanionActions') end,             desc = "Actions menu" },
-	{ "<leader>ac", function() vim.cmd('CodeCompanionActions') end,             desc = "Actions menu",          mode = "v" },
-	{ "<leader>ai", ":'<,'>CodeCompanion ",                                     desc = "Inline prompt",         mode = "v" },
-	{ "<leader>av", function() vim.cmd('CodeCompanionChat Add') end,            desc = "Add selection to chat", mode = "v" },
-	{ "<leader>ae", function() require('codecompanion').prompt('explain') end,  desc = "Explain code",          mode = "v" },
-	{ "<leader>af", function() require('codecompanion').prompt('fix') end,      desc = "Fix code",              mode = "v" },
-	{ "<leader>at", function() require('codecompanion').prompt('tests') end,    desc = "Generate tests",        mode = "v" },
-	{ "<leader>al", function() require('codecompanion').prompt('lsp') end,      desc = "Explain LSP diagnostic" },
-	{ "<leader>am", function() require('codecompanion').prompt('commit') end,   desc = "Commit message" },
-
-	-- Buffers
-	{ "<leader>b",  group = "Buffer" },
-	{ "<leader>bb", function() require('telescope.builtin').buffers() end,      desc = "List buffers" },
-	{ "<leader>bd", function() vim.cmd('bdelete') end,                          desc = "Close buffer" },
-	{ "<leader>br", function() vim.cmd('edit') end,                             desc = "Reload buffer" },
-
-	-- Debug
-	{ "<leader>d",  group = "Debug" },
-	{ "<leader>db", function() require('dap').toggle_breakpoint() end,          desc = "Toggle BP" },
-	{ "<leader>dc", function() require('dap').continue() end,                   desc = "Continue" },
-	{ "<leader>di", function() require('dap').step_into() end,                  desc = "Step Into" },
-	{ "<leader>do", function() require('dap').step_over() end,                  desc = "Step Over" },
-	{ "<leader>dO", function() require('dap').step_out() end,                   desc = "Step Out" },
-	{ "<leader>dr", function() require('dap').run_to_cursor() end,              desc = "Run to cursor" },
-	{ "<leader>dt", function() require('dap').terminate() end,                  desc = "Terminate" },
-	{ "<leader>de", function() require('dapui').eval() end,                     desc = "Eval expression" },
-	{ "<leader>de", function() require('dapui').eval() end,                     desc = "Eval selection",        mode = "v" },
-	{ "<leader>du", function() require('dapui').toggle() end,                   desc = "DAP UI" },
-
-	-- Explore
-	{ "<leader>e",  group = "Explore" },
-	{ "<leader>ee", function() vim.cmd('Neotree toggle') end,                   desc = "Neotree Toggle" },
-	{ "<leader>er", function() vim.cmd('Neotree reveal') end,                   desc = "Neotree Reveal file" },
-	{ "<leader>eb", function() vim.cmd('Neotree toggle source=buffers') end,    desc = "Neotree Buffers" },
-	{ "<leader>eg", function() vim.cmd('Neotree toggle source=git_status') end, desc = "Neotree Git status" },
-
-	-- Tabs
-	{ "<leader>t",  group = "Tab" },
-	{ "<leader>tc", function() vim.cmd('tabnew') end,                           desc = "New tab" },
-	{ "<leader>tx", function() vim.cmd('tabclose') end,                         desc = "Close tab" },
-	{ "<leader>to", function() vim.cmd('tabonly') end,                          desc = "Close other tabs" },
-	{ "<leader>t1", "1gt",                                                      desc = "Tab 1" },
-	{ "<leader>t2", "2gt",                                                      desc = "Tab 2" },
-	{ "<leader>t3", "3gt",                                                      desc = "Tab 3" },
-	{ "<leader>t4", "4gt",                                                      desc = "Tab 4" },
-	{ "<leader>t5", "5gt",                                                      desc = "Tab 5" },
-	{
-		"<leader>tr",
-		function()
-			vim.ui.input({ prompt = "Tab name: " }, function(name)
-				if name and name ~= "" then
-					vim.api.nvim_tabpage_set_var(0, "tab_name", name)
-					vim.cmd("redrawtabline")
-				end
-			end)
-		end,
-		desc = "Rename tab",
-	},
-
-	-- Find (Telescope)
-	{ "<leader>f",  group = "Find" },
-	{ "<leader>ff", function() require('telescope.builtin').find_files() end,                       desc = "Files" },
-	{ "<leader>fb", function() require('telescope.builtin').buffers() end,                          desc = "Buffers" },
-	{ "<leader>fg", function() require('telescope').extensions.live_grep_args.live_grep_args() end, desc = "Grep" },
-	{ "<leader>fs", function() require('telescope.builtin').lsp_workspace_symbols() end,            desc = "Symbols" },
-	{ "<leader>fr", function() require('telescope.builtin').oldfiles() end,                         desc = "Recent files" },
-	{ "<leader>fh", function() require('telescope.builtin').help_tags() end,                        desc = "Help tags" },
-	{ "<leader>fk", function() require('telescope.builtin').keymaps() end,                          desc = "Keymaps" },
-	{ "<leader>fd", function() require('telescope.builtin').diagnostics() end,                      desc = "Diagnostics" },
-	{ "<leader>fc", function() require('telescope.builtin').git_commits() end,                      desc = "Git commits" },
-	{ "<leader>fB", function() require('telescope.builtin').git_branches() end,                     desc = "Git branches" },
-	{ "<leader>f.", function() require('telescope.builtin').resume() end,                           desc = "Resume last" },
-
-	-- Git
-	{ "<leader>g",  group = "Git" },
-	{ "<leader>gb", function() require('gitsigns').blame_line({ full = true }) end,                 desc = "Blame line" },
-	{ "<leader>gB", function() require('gitsigns').toggle_current_line_blame() end,                 desc = "Toggle inline blame" },
-	{
-		"<leader>gd",
-		function()
-			local ok, lib = pcall(require, 'diffview.lib')
-			if ok and #lib.views > 0 then vim.cmd('DiffviewClose') else vim.cmd('DiffviewOpen') end
-		end,
-		desc = "DiffView toggle"
-	},
-	{ "<leader>gg",  function() require('neogit').open() end,               desc = "Neogit" },
-	{ "<leader>gl",  function() vim.cmd('LazyGit') end,                     desc = "LazyGit" },
-	{ "<leader>gL",  function() require('neogit').open({ 'log' }) end,      desc = "Log" },
-	{ "<leader>gh",  function() vim.cmd('DiffviewFileHistory %') end,       desc = "File history" },
-	{ "<leader>gH",  function() vim.cmd('DiffviewFileHistory') end,         desc = "Repo history" },
-	{ "<leader>gp",  function() require('gitsigns').preview_hunk() end,     desc = "Preview hunk" },
-	{ "<leader>gs",  function() require('gitsigns').stage_hunk() end,       desc = "Stage hunk" },
-	{ "<leader>gu",  function() require('gitsigns').undo_stage_hunk() end,  desc = "Undo stage hunk" },
-	{ "<leader>gr",  function() require('gitsigns').reset_hunk() end,       desc = "Reset hunk" },
-	{ "<leader>gS",  function() require('gitsigns').stage_buffer() end,     desc = "Stage buffer" },
-	{ "<leader>gR",  function() require('gitsigns').reset_buffer() end,     desc = "Reset buffer" },
-	{ "<leader>gw",  group = "Worktree" },
-	{ "<leader>gws", "<CMD>Telescope git_worktree git_worktrees<CR>",       desc = "Switch worktree" },
-	{ "<leader>gwc", "<CMD>Telescope git_worktree create_git_worktree<CR>", desc = "Create worktree" },
-	{ "]c",          function() require('gitsigns').nav_hunk('next') end,   desc = "Next hunk" },
-	{ "[c",          function() require('gitsigns').nav_hunk('prev') end,   desc = "Prev hunk" },
-
-	-- Github
-	{ "<leader>G",   group = "GitHub" },
-	{
-		{
-			"<leader>Gi",
-			"<CMD>Octo issue list<CR>",
-			desc = "List GitHub Issues",
-		},
-		{
-			"<leader>Gp",
-			"<CMD>Octo pr list<CR>",
-			desc = "List GitHub PullRequests",
-		},
-		{
-			"<leader>Gd",
-			"<CMD>Octo discussion list<CR>",
-			desc = "List GitHub Discussions",
-		},
-		{
-			"<leader>Gn",
-			"<CMD>Octo notification list<CR>",
-			desc = "List GitHub Notifications",
-		},
-		{
-			"<leader>Gs",
-			function()
-				require("octo.utils").create_base_search_command { include_current_repo = true }
-			end,
-			desc = "Search GitHub",
-		},
-		{
-			"<leader>Gr",
-			"<CMD>Octo pr reload<CR>",
-			desc = "Reload PR",
-		},
-	},
-
-
-	-- LSP
-	{ "<leader>l",     group = "LSP" },
-	{ "<leader>lf",    function() require('conform').format({ async = true, lsp_fallback = true }) end,         desc = "Format" },
-	{ "<leader>la",    function() vim.lsp.buf.code_action() end,                                                desc = "Code Action" },
-	{ "<leader>lr",    function() vim.lsp.buf.rename() end,                                                     desc = "Rename" },
-	{ "<leader>lt",    function() vim.lsp.buf.type_definition() end,                                            desc = "Type definition" },
-	{ "<leader>ls",    function() require('telescope.builtin').lsp_document_symbols() end,                      desc = "Document symbols" },
-	{ "<leader>lk",    function() vim.lsp.buf.signature_help() end,                                             desc = "Signature help" },
-
-	-- Diagnostics
-	{ "<leader>o",     vim.diagnostic.open_float,                                                               desc = "Diagnostics float" },
-	{ "]d",            function() vim.diagnostic.goto_next() end,                                               desc = "Next diagnostic" },
-	{ "[d",            function() vim.diagnostic.goto_prev() end,                                               desc = "Prev diagnostic" },
-
-	-- Database
-	{ "<leader>D",     group = "Database" },
-	{ "<leader>Du",    function() vim.cmd('DBUIToggle') end,                                                    desc = "Toggle DBUI" },
-	{ "<leader>Da",    function() vim.cmd('DBUIAddConnection') end,                                             desc = "Add connection" },
-	{ "<leader>Df",    function() vim.cmd('DBUIFindBuffer') end,                                                desc = "Find buffer" },
-	{ "<leader>De",    "<Plug>(DBUI_ExecuteQuery)",                                                             mode = { "n", "v" },             desc = "Execute query" },
-	{ "<leader>Ds",    "<Plug>(DBUI_SaveQuery)",                                                                desc = "Save query" },
-
-	-- Windows
-	{ "<leader>w",     group = "Window" },
-	{ "<leader>wh",    "<C-w>h",                                                                                desc = "Move left" },
-	{ "<leader>wj",    "<C-w>j",                                                                                desc = "Move down" },
-	{ "<leader>wk",    "<C-w>k",                                                                                desc = "Move up" },
-	{ "<leader>wl",    "<C-w>l",                                                                                desc = "Move right" },
-	{ "<leader>wv",    function() vim.cmd('vsplit') end,                                                        desc = "Vertical split" },
-	{ "<leader>ws",    function() vim.cmd('split') end,                                                         desc = "Horizontal split" },
-	{ "<leader>wq",    function() vim.cmd('close') end,                                                         desc = "Close window" },
-	{ "<leader>wo",    function() vim.cmd('only') end,                                                          desc = "Close other windows" },
-	{ "<leader>w=",    function() vim.cmd('wincmd =') end,                                                      desc = "Equal width" },
-
-	-- Copy
-	{ "<leader>c",     group = "Copy" },
-	{ "<leader>cp",    function() vim.fn.setreg('+', vim.fn.expand('%:p')) end,                                 desc = "Absolute path" },
-	{ "<leader>cr",    function() vim.fn.setreg('+', vim.fn.expand('%:.')) end,                                 desc = "Relative path" },
-	{ "<leader>cf",    function() vim.fn.setreg('+', vim.fn.expand('%:t')) end,                                 desc = "Filename" },
-	{ "<leader>cd",    function() vim.fn.setreg('+', vim.fn.getcwd()) end,                                      desc = "Working directory" },
-	{ "<leader>cb",    function() vim.fn.setreg('+', vim.trim(vim.fn.system('git branch --show-current'))) end, desc = "Git branch" },
-
-	-- Tests (neotest)
-	{ "<leader>n",     group = "Test" },
-	{ "<leader>nn",    function() require('neotest').run.run() end,                                             desc = "Run nearest" },
-	{ "<leader>nf",    function() require('neotest').run.run(vim.fn.expand('%')) end,                           desc = "Run file" },
-	{ "<leader>nd",    function() require('neotest').run.run({ strategy = 'dap' }) end,                        desc = "Debug nearest" },
-	{ "<leader>ns",    function() require('neotest').run.stop() end,                                           desc = "Stop" },
-	{ "<leader>no",    function() require('neotest').output.open({ enter = true }) end,                        desc = "Output" },
-	{ "<leader>nO",    function() require('neotest').output_panel.toggle() end,                                desc = "Output panel" },
-	{ "<leader>nS",    function() require('neotest').summary.toggle() end,                                     desc = "Summary" },
-
-	-- Misc
-	{ "<leader>qq",    function() vim.cmd('qa') end,                                                            desc = "Quit all" },
-	{ "<leader><Esc>", function() vim.cmd('noh') end,                                                           desc = "No highlight" },
-	{ "<leader>sa",    "ggVG",                                                                                  desc = "Select all" },
-	{ "<leader>P",     function() vim.cmd('Lazy') end,                                                          desc = "Plugin manager" },
-	{ "<leader>tn",    function() vim.o.relativenumber = not vim.o.relativenumber end,                          desc = "Toggle relative numbers" },
-	{ "<leader>rm",    function() vim.cmd('RenderMarkdown toggle') end,                                         desc = "Toggle markdown render" },
-
-	-- Tab cycling
-	{ "<A-Tab>",       function() vim.cmd('tabnext') end,                                                       desc = "Next tab" },
-	{ "<A-S-Tab>",     function() vim.cmd('tabprevious') end,                                                   desc = "Prev tab" },
-
-	-- Buffer cycling
-	{ "<Tab>",         function() vim.cmd('bnext') end,                                                         desc = "Next buffer",            mode = "n" },
-	{ "<S-Tab>",       function() vim.cmd('bprevious') end,                                                     desc = "Prev buffer",            mode = "n" },
-
-	-- Window navigation (Ctrl+hjkl)
-	{ "<C-h>",         "<C-w>h",                                                                                desc = "Move to left window" },
-	{ "<C-j>",         "<C-w>j",                                                                                desc = "Move to below window" },
-	{ "<C-k>",         "<C-w>k",                                                                                desc = "Move to above window" },
-	{ "<C-l>",         "<C-w>l",                                                                                desc = "Move to right window" },
-
-	-- Resize windows (Ctrl+arrows)
-	{ "<C-Up>",        function() vim.cmd('resize +2') end,                                                     desc = "Increase height" },
-	{ "<C-Down>",      function() vim.cmd('resize -2') end,                                                     desc = "Decrease height" },
-	{ "<C-Left>",      function() vim.cmd('vertical resize -2') end,                                            desc = "Decrease width" },
-	{ "<C-Right>",     function() vim.cmd('vertical resize +2') end,                                            desc = "Increase width" },
-})
+-- 4) Keymaps — spec lives in lua/keymaps.lua (registered via which-key plugin config).
 
 -- Go-specific keymaps (buffer-local via which-key, only active in Go files)
 vim.api.nvim_create_autocmd('FileType', {
 	pattern = 'go',
 	callback = function(args)
-		wk.add({
+		require('which-key').add({
 			buffer = args.buf,
 			-- Go code generation (gopher.nvim) — under LSP group
-			{ "<leader>lj", "<CMD>GoTagAdd json<CR>",                                    desc = "Add json tags" },
-			{ "<leader>ly", "<CMD>GoTagAdd yaml<CR>",                                    desc = "Add yaml tags" },
-			{ "<leader>lJ", "<CMD>GoTagRm json<CR>",                                     desc = "Remove json tags" },
-			{ "<leader>le", "<CMD>GoIfErr<CR>",                                          desc = "Insert if err" },
-			{ "<leader>li", "<CMD>GoImpl<CR>",                                           desc = "Implement interface" },
-			{ "<leader>lG", "<CMD>GoGenerate<CR>",                                       desc = "Go generate" },
-			{ "<leader>lc", "<CMD>GoCmt<CR>",                                            desc = "Generate doc comment" },
+			{ "<leader>lj", "<CMD>GoTagAdd json<CR>",                           desc = "Add json tags" },
+			{ "<leader>ly", "<CMD>GoTagAdd yaml<CR>",                           desc = "Add yaml tags" },
+			{ "<leader>lJ", "<CMD>GoTagRm json<CR>",                            desc = "Remove json tags" },
+			{ "<leader>le", "<CMD>GoIfErr<CR>",                                 desc = "Insert if err" },
+			{ "<leader>li", "<CMD>GoImpl<CR>",                                  desc = "Implement interface" },
+			{ "<leader>lG", "<CMD>GoGenerate<CR>",                              desc = "Go generate" },
+			{ "<leader>lc", "<CMD>GoCmt<CR>",                                   desc = "Generate doc comment" },
 			-- Go test generation (gopher.nvim) — under Test group
-			{ "<leader>nT", "<CMD>GoTestAdd<CR>",                                        desc = "Generate test for func" },
-			{ "<leader>nA", "<CMD>GoTestsAll<CR>",                                       desc = "Generate all tests" },
-			{ "<leader>nE", "<CMD>GoTestsExp<CR>",                                       desc = "Generate exported tests" },
+			{ "<leader>nT", "<CMD>GoTestAdd<CR>",                               desc = "Generate test for func" },
+			{ "<leader>nA", "<CMD>GoTestsAll<CR>",                              desc = "Generate all tests" },
+			{ "<leader>nE", "<CMD>GoTestsExp<CR>",                              desc = "Generate exported tests" },
 			-- Debug Go test (nvim-dap-go) — under Debug group
-			{ "<leader>dg", function() require('dap-go').debug_test() end,                desc = "Debug Go test" },
-			{ "<leader>dG", function() require('dap-go').debug_last_test() end,           desc = "Debug last Go test" },
+			{ "<leader>dg", function() require('dap-go').debug_test() end,      desc = "Debug Go test" },
+			{ "<leader>dG", function() require('dap-go').debug_last_test() end, desc = "Debug last Go test" },
+		})
+	end,
+})
+
+-- Cargo.toml-specific keymaps (crates.nvim)
+vim.api.nvim_create_autocmd('BufRead', {
+	pattern = 'Cargo.toml',
+	callback = function(args)
+		local crates = require('crates')
+		require('which-key').add({
+			buffer = args.buf,
+			{ "<leader>R",  group = "Crates" },
+			{ "<leader>Ri", crates.show_popup,              desc = "Crate info" },
+			{ "<leader>Rv", crates.show_versions_popup,     desc = "Versions" },
+			{ "<leader>Rf", crates.show_features_popup,     desc = "Features" },
+			{ "<leader>Rd", crates.show_dependencies_popup, desc = "Dependencies" },
+			{ "<leader>Ru", crates.update_crate,            desc = "Update crate" },
+			{ "<leader>RU", crates.upgrade_crate,           desc = "Upgrade crate" },
+			{ "<leader>Ra", crates.update_all_crates,       desc = "Update all" },
+			{ "<leader>RA", crates.upgrade_all_crates,      desc = "Upgrade all" },
+			{ "<leader>RH", crates.open_homepage,           desc = "Open homepage" },
+			{ "<leader>RR", crates.open_repository,         desc = "Open repo" },
 		})
 	end,
 })
@@ -831,6 +729,17 @@ require('cmp').setup({
 	formatting = { format = lspkind.cmp_format({ mode = 'symbol_text', maxwidth = 50 }) },
 })
 
+-- Add obsidian cmp source for markdown files
+cmp.setup.filetype('markdown', {
+	sources = cmp.config.sources({
+		{ name = 'obsidian' },
+		{ name = 'nvim_lsp' },
+		{ name = 'luasnip' },
+		{ name = 'path' },
+		{ name = 'buffer' },
+	}),
+})
+
 -- Minuet AI inline completion (Groq + llama-3.3-70b)
 require('minuet').setup({
 	provider = 'openai_compatible',
@@ -839,7 +748,10 @@ require('minuet').setup({
 	n_completions = 1,
 	provider_options = {
 		openai_compatible = {
-			api_key = function() return vim.fn.system('security find-generic-password -s GROQ_API_KEY -w'):gsub('%s+$', '') end,
+			api_key = function()
+				return vim.fn.system('security find-generic-password -s GROQ_API_KEY -w'):gsub('%s+$',
+					'')
+			end,
 			end_point = 'https://api.groq.com/openai/v1/chat/completions',
 			model = 'llama-3.3-70b-versatile',
 			name = 'Groq',
@@ -851,7 +763,7 @@ require('minuet').setup({
 		},
 	},
 	virtualtext = {
-		auto_trigger_ft = {},  -- disable auto-trigger, use manual keybind
+		auto_trigger_ft = {}, -- disable auto-trigger, use manual keybind
 		keymap = {
 			accept = '<A-A>',
 			accept_line = '<A-a>',
@@ -946,8 +858,22 @@ vim.lsp.config('gopls', {
 	},
 })
 
+-- Rust
+vim.lsp.config('rust_analyzer', {
+	settings = {
+		['rust-analyzer'] = {
+			check = {
+				command = 'clippy',
+			},
+			cargo = {
+				allFeatures = true,
+			},
+		},
+	},
+})
+
 -- Enable all configured servers
-vim.lsp.enable({ 'ruff', 'pyright', 'ts_ls', 'jsonls', 'yamlls', 'bashls', 'lua_ls', 'gopls' })
+vim.lsp.enable({ 'ruff', 'pyright', 'ts_ls', 'jsonls', 'yamlls', 'bashls', 'lua_ls', 'gopls', 'rust_analyzer' })
 
 -- LSP keymaps (buffer-local, set on attach)
 vim.api.nvim_create_autocmd('LspAttach', {
@@ -959,7 +885,9 @@ vim.api.nvim_create_autocmd('LspAttach', {
 		map('n', 'gd', vim.lsp.buf.definition, 'Goto Def')
 		map('n', 'gr', vim.lsp.buf.references, 'Refs')
 		map('n', 'gi', vim.lsp.buf.implementation, 'Impl')
-		map('n', 'K', vim.lsp.buf.hover, 'Hover')
+		map('n', 'K', function()
+			vim.lsp.buf.hover({ border = 'rounded' })
+		end, 'Hover')
 		map('n', '<leader>lf', function() require('conform').format({ async = true, lsp_fallback = true }) end, 'Format')
 	end,
 })
@@ -983,6 +911,7 @@ require('conform').setup({
 		yaml = { 'prettier' },
 		markdown = { 'prettier' },
 		go = { 'goimports-reviser', 'gofumpt' },
+		rust = { 'rustfmt' },
 		sh = { 'shfmt' },
 		sql = { 'sqruff' },
 		mysql = { 'sqruff' },
@@ -1059,6 +988,30 @@ dap.configurations.python = {
 		program = '${file}',
 		cwd = '${workspaceFolder}',
 		console = 'integratedTerminal',
+	},
+}
+
+-- Rust DAP configuration (codelldb via Mason)
+local codelldb_path = vim.fn.stdpath('data') .. '/mason/packages/codelldb/extension/adapter/codelldb'
+local liblldb_path = vim.fn.stdpath('data') .. '/mason/packages/codelldb/extension/lldb/lib/liblldb.dylib'
+dap.adapters.codelldb = {
+	type = 'server',
+	port = '${port}',
+	executable = {
+		command = codelldb_path,
+		args = { '--port', '${port}' },
+	},
+}
+dap.configurations.rust = {
+	{
+		type = 'codelldb',
+		request = 'launch',
+		name = 'Launch',
+		program = function()
+			return vim.fn.input('Path to executable: ', vim.fn.getcwd() .. '/target/debug/', 'file')
+		end,
+		cwd = '${workspaceFolder}',
+		stopOnEntry = false,
 	},
 }
 

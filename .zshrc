@@ -34,6 +34,7 @@ else
   export EDITOR='nvim'
 fi
 
+# Aliases
 [ -s ~/.bash_aliases ] && source ~/.bash_aliases
 
 # Export local bins
@@ -54,17 +55,20 @@ fi
 # Bun completions
 [ -s ~/.bun/_bun ] && source ~/.bun/_bun
 
-# bun
+# Zellij
+eval "$(zellij setup --generate-auto-start zsh)"
+
+# Bun
 export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
 
 # Added by LM Studio CLI (lms)
 export PATH="$PATH:$HOME/.cache/lm-studio/bin"
 
+# NVM
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
-
 
 # Zoxide 
 eval "$(zoxide init zsh)"
@@ -76,3 +80,4 @@ fpath=($HOME/.docker/completions $fpath)
 autoload -Uz compinit
 compinit
 # End of Docker CLI completions
+
